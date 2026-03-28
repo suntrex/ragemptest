@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Menu</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="overlay" onclick="handleOverlayClick(event)"></div>
+
+<div id="menu">
+    <div id="menu-header">
+        <span id="menu-title">⚙ Admin Menu</span>
+        <button id="close-btn" onclick="closeMenu()">✕</button>
+    </div>
+
+    <!-- Tab bar -->
+    <div id="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('player')">Player</button>
+        <button class="tab-btn" onclick="switchTab('vehicle')">Vehicle</button>
+        <button class="tab-btn" onclick="switchTab('weapons')">Weapons</button>
+        <button class="tab-btn" onclick="switchTab('world')">World</button>
+        <button class="tab-btn" onclick="switchTab('players')">Players</button>
+    </div>
+
+    <!-- ── Player Tab ─────────────────────────────────────────────────────── -->
+    <div id="tab-player" class="tab-content active">
+        <div class="section-title">Teleport</div>
+        <button class="action-btn" onclick="teleportToWaypoint()">📍 Teleport to Waypoint</button>
+
+        <div class="section-title">Health &amp; Armor</div>
+        <button class="action-btn green" onclick="healSelf()">💚 Heal (Full HP + Armor)</button>
+        <button class="action-btn red" onclick="killSelf()">💀 Kill Self</button>
+
+        <div class="row-input">
+            <label>Set Health</label>
+            <input type="number" id="health-val" min="0" max="100" value="100" />
+            <button onclick="setHealth()">Set</button>
+        </div>
+        <div class="row-input">
+            <label>Set Armor</label>
+            <input type="number" id="armor-val" min="0" max="100" value="100" />
+            <button onclick="setArmor()">Set</button>
+        </div>
+
+        <div class="section-title">Modes</div>
+        <div class="toggle-row">
+            <span>God Mode</span>
+            <label class="switch">
+                <input type="checkbox" id="godmode-toggle" onchange="toggleGodMode(this.checked)" />
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="toggle-row">
+            <span>Invisible</span>
+            <label class="switch">
+                <input type="checkbox" id="invisible-toggle" onchange="toggleInvisible(this.checked)" />
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- ── Vehicle Tab ────────────────────────────────────────────────────── -->
+    <div id="tab-vehicle" class="tab-content">
+        <div class="section-title">Spawn Vehicle</div>
+        <div class="row-input">
+            <input type="text" id="vehicle-model" placeholder="e.g. adder, zentorno, fbi2" list="vehicle-list" />
+            <datalist id="vehicle-list">
+                <option value="adder">
+                <option value="zentorno">
+                <option value="t20">
+                <option value="entityxf">
+                <option value="osiris">
+                <option value="reaper">
+                <option value="vacca">
+                <option value="cheetah">
+                <option value="turismor">
+                <option value="infernus">
+                <option value="bullet">
+                <option value="fmj">
+                <option value="sultanrs">
+                <option value="elegy2">
+                <option value="comet2">
+                <option value="fbi2">
+                <option value="police">
+                <option value="policeold1">
+                <option value="ambulance">
+                <option value="firetruk">
+                <option value="buzzard2">
+                <option value="lazer">
+                <option value="rhino">
+                <option value="insurgent">
+                <option value="technical">
+                <option value="hydra">
+                <option value="savage">
+                <option value="oppressor2">
+                <option value="bati">
+                <option value="carbonizzare">
+                <option value="banshee2">
+            </datalist>
+            <button onclick="spawnVehicle()">Spawn</button>
+        </div>
+
+        <div class="section-title">Current Vehicle</div>
+        <button class="action-btn green" onclick="fixVehicle()">🔧 Fix Vehicle</button>
+        <button class="action-btn yellow" onclick="flipVehicle()">🔄 Flip Vehicle</button>
+        <button class="action-btn red" onclick="deleteVehicle()">🗑 Delete Vehicle</button>
+    </div>
+
+    <!-- ── Weapons Tab ────────────────────────────────────────────────────── -->
+    <div id="tab-weapons" class="tab-content">
+        <div class="section-title">Give Weapon</div>
+        <div class="row-input">
+            <input type="text" id="weapon-name" placeholder="e.g. WEAPON_RPG" list="weapon-list" />
+            <datalist id="weapon-list">
+                <option value="WEAPON_PISTOL">
+                <option value="WEAPON_COMBATPISTOL">
+                <option value="WEAPON_APPISTOL">
+                <option value="WEAPON_PISTOL50">
+                <option value="WEAPON_MICROSMG">
+                <option value="WEAPON_SMG">
+                <option value="WEAPON_ASSAULTSMG">
+                <option value="WEAPON_COMBATPDW">
+                <option value="WEAPON_ASSAULTRIFLE">
+                <option value="WEAPON_CARBINERIFLE">
+                <option value="WEAPON_ADVANCEDRIFLE">
+                <option value="WEAPON_SPECIALCARBINE">
+                <option value="WEAPON_BULLPUPRIFLE">
+                <option value="WEAPON_COMPACTRIFLE">
+                <option value="WEAPON_MG">
+                <option value="WEAPON_COMBATMG">
+                <option value="WEAPON_GUSENBERG">
+                <option value="WEAPON_PUMPSHOTGUN">
+                <option value="WEAPON_SAWNOFFSHOTGUN">
+                <option value="WEAPON_ASSAULTSHOTGUN">
+                <option value="WEAPON_BULLPUPSHOTGUN">
+                <option value="WEAPON_MUSKET">
+                <option value="WEAPON_HEAVYSHOTGUN">
+                <option value="WEAPON_DBSHOTGUN">
+                <option value="WEAPON_SNIPERRIFLE">
+                <option value="WEAPON_HEAVYSNIPER">
+                <option value="WEAPON_MARKSMANRIFLE">
+                <option value="WEAPON_RPG">
+                <option value="WEAPON_GRENADELAUNCHER">
+                <option value="WEAPON_MINIGUN">
+                <option value="WEAPON_RAILGUN">
+                <option value="WEAPON_HOMINGLAUNCHER">
+                <option value="WEAPON_GRENADE">
+                <option value="WEAPON_STICKYBOMB">
+                <option value="WEAPON_PROXIMITYMINE">
+                <option value="WEAPON_MOLOTOV">
+                <option value="WEAPON_KNIFE">
+                <option value="WEAPON_NIGHTSTICK">
+                <option value="WEAPON_HAMMER">
+                <option value="WEAPON_BAT">
+                <option value="WEAPON_CROWBAR">
+                <option value="WEAPON_GOLFCLUB">
+                <option value="WEAPON_BOTTLE">
+                <option value="WEAPON_DAGGER">
+                <option value="WEAPON_MACHETE">
+                <option value="WEAPON_SWITCHBLADE">
+                <option value="WEAPON_FLASHLIGHT">
+                <option value="WEAPON_PARACHUTE">
+            </datalist>
+            <button onclick="giveWeapon()">Give</button>
+        </div>
+        <button class="action-btn red" onclick="removeAllWeapons()">🚫 Remove All Weapons</button>
+    </div>
+
+    <!-- ── World Tab ──────────────────────────────────────────────────────── -->
+    <div id="tab-world" class="tab-content">
+        <div class="section-title">Time</div>
+        <div class="row-input">
+            <label>Hour (0–23)</label>
+            <input type="number" id="time-hour" min="0" max="23" value="12" />
+            <label>Min (0–59)</label>
+            <input type="number" id="time-min" min="0" max="59" value="0" />
+            <button onclick="setTime()">Set</button>
+        </div>
+
+        <div class="section-title">Weather</div>
+        <div class="weather-grid">
+            <button class="weather-btn" onclick="setWeather('CLEAR')">☀️ Clear</button>
+            <button class="weather-btn" onclick="setWeather('EXTRASUNNY')">🌞 Extra Sunny</button>
+            <button class="weather-btn" onclick="setWeather('CLOUDS')">☁️ Cloudy</button>
+            <button class="weather-btn" onclick="setWeather('OVERCAST')">🌥️ Overcast</button>
+            <button class="weather-btn" onclick="setWeather('RAIN')">🌧️ Rain</button>
+            <button class="weather-btn" onclick="setWeather('THUNDER')">⛈️ Thunder</button>
+            <button class="weather-btn" onclick="setWeather('FOGGY')">🌫️ Foggy</button>
+            <button class="weather-btn" onclick="setWeather('SMOG')">💨 Smog</button>
+            <button class="weather-btn" onclick="setWeather('SNOWLIGHT')">🌨️ Light Snow</button>
+            <button class="weather-btn" onclick="setWeather('BLIZZARD')">❄️ Blizzard</button>
+            <button class="weather-btn" onclick="setWeather('XMAS')">🎄 Xmas</button>
+            <button class="weather-btn" onclick="setWeather('HALLOWEEN')">🎃 Halloween</button>
+        </div>
+    </div>
+
+    <!-- ── Players Tab ────────────────────────────────────────────────────── -->
+    <div id="tab-players" class="tab-content">
+        <div class="section-title">
+            Player Management
+            <button class="refresh-btn" onclick="requestPlayerList()">🔄 Refresh</button>
+        </div>
+        <div id="player-list-container">
+            <div class="placeholder">Click Refresh to load the player list.</div>
+        </div>
+
+        <div id="player-actions" class="hidden">
+            <div class="section-title">Actions for: <span id="selected-player-name">—</span></div>
+            <div class="actions-grid">
+                <button class="action-btn green" onclick="healTargetPlayer()">💚 Heal</button>
+                <button class="action-btn red" onclick="killTargetPlayer()">💀 Kill</button>
+                <button class="action-btn blue" onclick="teleportToTargetPlayer()">📍 TP To</button>
+                <button class="action-btn blue" onclick="bringTargetPlayer()">⬇️ Bring</button>
+                <button class="action-btn yellow" onclick="freezeTargetPlayer(true)">🧊 Freeze</button>
+                <button class="action-btn yellow" onclick="freezeTargetPlayer(false)">🔥 Unfreeze</button>
+                <button class="action-btn red" onclick="kickTargetPlayer()">🚪 Kick</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="hidden"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
