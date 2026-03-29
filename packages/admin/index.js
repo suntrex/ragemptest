@@ -478,8 +478,8 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
 });
 
 mp.events.add('playerReady', (player) => {
-    // Show login overlay via CEF.
+    // Show login overlay via CEF as soon as the player is ready.
     player.call('auth:showLogin');
-    player.outputChatBox('!{#00ff88}Welcome! Please log in with your UCP account using the login screen or /login <username> <password>');
-    player.outputChatBox('!{#aaaaaa}No account yet? Register at: http://<server-ip>:8080/register');
+    player.outputChatBox('!{#00ff88}Welcome! Please use the login screen to authenticate.');
+    player.outputChatBox('!{#aaaaaa}No account yet? Register at the UCP: http://<server-ip>:8080/ucp');
 });

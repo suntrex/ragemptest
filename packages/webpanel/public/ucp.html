@@ -41,6 +41,7 @@
         .form-group input:focus {
             border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,160,32,0.15);
         }
+        .form-group .hint { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
         .btn-login {
             width: 100%; padding: 12px; background: var(--accent); border: none;
             border-radius: var(--radius); color: #000; font-size: 14px; font-weight: 800;
@@ -54,8 +55,31 @@
             padding: 10px 14px; margin-bottom: 16px; display: none;
         }
         .error-msg.visible { display: block; }
+        .success-msg {
+            background: rgba(39,174,96,0.15); border: 1px solid var(--green);
+            border-radius: var(--radius); color: var(--green); font-size: 13px;
+            padding: 10px 14px; margin-bottom: 16px; display: none;
+        }
+        .success-msg.visible { display: block; }
         .login-footer { text-align: center; margin-top: 20px; color: var(--text-muted); font-size: 11px; }
         .login-footer a { color: var(--accent); }
+
+        /* ── Login/Register tab switcher ──────────────────────────────────── */
+        .auth-tabs {
+            display: flex; margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .auth-tab-btn {
+            flex: 1; padding: 10px 0; background: none; border: none;
+            font-size: 13px; font-weight: 700; color: var(--text-muted);
+            cursor: pointer; border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s; margin-bottom: -1px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .auth-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .auth-tab-btn:hover:not(.active) { color: var(--text); }
+        .auth-panel { display: none; }
+        .auth-panel.active { display: block; }
 
         /* ── Dashboard ────────────────────────────────────────────────────── */
         #dashboard-screen {
@@ -188,22 +212,51 @@
             <p>User Control Panel</p>
         </div>
         <div class="login-card">
-            <div id="login-error" class="error-msg" role="alert"></div>
-            <form id="login-form" novalidate>
-                <div class="form-group">
-                    <label for="ucp-username">Username</label>
-                    <input type="text" id="ucp-username" autocomplete="username" placeholder="Enter your username" required />
-                </div>
-                <div class="form-group">
-                    <label for="ucp-password">Password</label>
-                    <input type="password" id="ucp-password" autocomplete="current-password" placeholder="Enter your password" required />
-                </div>
-                <button type="submit" class="btn-login" id="login-btn">Sign In</button>
-            </form>
+            <!-- Tab switcher -->
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="tab-login-btn" onclick="switchAuthTab('login')">Sign In</button>
+                <button class="auth-tab-btn" id="tab-register-btn" onclick="switchAuthTab('register')">Register</button>
+            </div>
+
+            <!-- Login panel -->
+            <div class="auth-panel active" id="auth-panel-login">
+                <div id="login-error" class="error-msg" role="alert"></div>
+                <form id="login-form" novalidate>
+                    <div class="form-group">
+                        <label for="ucp-username">Username</label>
+                        <input type="text" id="ucp-username" autocomplete="username" placeholder="Enter your username" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="ucp-password">Password</label>
+                        <input type="password" id="ucp-password" autocomplete="current-password" placeholder="Enter your password" required />
+                    </div>
+                    <button type="submit" class="btn-login" id="login-btn">Sign In</button>
+                </form>
+            </div>
+
+            <!-- Register panel -->
+            <div class="auth-panel" id="auth-panel-register">
+                <div id="reg-error" class="error-msg" role="alert"></div>
+                <div id="reg-success" class="success-msg" role="status"></div>
+                <form id="register-form" novalidate>
+                    <div class="form-group">
+                        <label for="reg-username">Username</label>
+                        <input type="text" id="reg-username" autocomplete="username" placeholder="Choose a username" required />
+                        <div class="hint">3–20 characters: letters, numbers, underscore</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Password</label>
+                        <input type="password" id="reg-password" autocomplete="new-password" placeholder="Choose a password (min. 6 chars)" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password2">Confirm Password</label>
+                        <input type="password" id="reg-password2" autocomplete="new-password" placeholder="Repeat your password" required />
+                    </div>
+                    <button type="submit" class="btn-login" id="reg-btn">Create Account</button>
+                </form>
+            </div>
         </div>
         <div class="login-footer">
-            <a href="/register">Create a player account</a>
-            &nbsp;|&nbsp;
             <a href="/">Admin Panel Login</a>
         </div>
     </div>
@@ -358,6 +411,18 @@ function showDashboard() {
     document.getElementById('dashboard-screen').classList.add('visible');
 }
 
+// ── Auth Tab Switcher ─────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+    ['login', 'register'].forEach(t => {
+        document.getElementById(`auth-panel-${t}`).classList.toggle('active', t === tab);
+        document.getElementById(`tab-${t}-btn`).classList.toggle('active', t === tab);
+    });
+    // Clear messages when switching tabs
+    document.getElementById('login-error').classList.remove('visible');
+    document.getElementById('reg-error').classList.remove('visible');
+    document.getElementById('reg-success').classList.remove('visible');
+}
+
 const loginForm = document.getElementById('login-form');
 const loginErr  = document.getElementById('login-error');
 const loginBtn  = document.getElementById('login-btn');
@@ -391,6 +456,65 @@ loginForm.addEventListener('submit', async (e) => {
         loginErr.classList.add('visible');
     } finally {
         loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
+    }
+});
+
+// ── Register Form ─────────────────────────────────────────────────────────────
+const registerForm = document.getElementById('register-form');
+const regErr       = document.getElementById('reg-error');
+const regSuccess   = document.getElementById('reg-success');
+const regBtn       = document.getElementById('reg-btn');
+
+registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    regErr.classList.remove('visible');
+    regSuccess.classList.remove('visible');
+    const username  = document.getElementById('reg-username').value.trim().toLowerCase();
+    const password  = document.getElementById('reg-password').value;
+    const password2 = document.getElementById('reg-password2').value;
+    if (!username || !password || !password2) {
+        regErr.textContent = 'Please fill in all fields.';
+        regErr.classList.add('visible');
+        return;
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        regErr.textContent = 'Username must be 3–20 characters (letters, numbers, underscore).';
+        regErr.classList.add('visible');
+        return;
+    }
+    if (password.length < 6) {
+        regErr.textContent = 'Password must be at least 6 characters.';
+        regErr.classList.add('visible');
+        return;
+    }
+    if (password !== password2) {
+        regErr.textContent = 'Passwords do not match.';
+        regErr.classList.add('visible');
+        return;
+    }
+    regBtn.disabled = true; regBtn.textContent = 'Creating account…';
+    try {
+        const res = await fetch('/api/ucp-register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+            regSuccess.textContent = 'Account created! You can now sign in.';
+            regSuccess.classList.add('visible');
+            registerForm.reset();
+            // Auto-switch to login tab after a short delay
+            setTimeout(() => switchAuthTab('login'), 1500);
+        } else {
+            regErr.textContent = data.error || 'Registration failed. Please try again.';
+            regErr.classList.add('visible');
+        }
+    } catch {
+        regErr.textContent = 'Could not reach the server. Please try again.';
+        regErr.classList.add('visible');
+    } finally {
+        regBtn.disabled = false; regBtn.textContent = 'Create Account';
     }
 });
 
