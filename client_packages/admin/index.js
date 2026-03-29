@@ -51,7 +51,7 @@ mp.events.add('auth:showLogin', () => {
     // Give the browser a moment to load before executing JS.
     setTimeout(() => {
         if (browser) browser.execute('showLoginOverlay()');
-    }, 500);
+    }, 1500);
 });
 
 /** Server responds with login result. */

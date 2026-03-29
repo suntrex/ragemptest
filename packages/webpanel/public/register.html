@@ -186,7 +186,7 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.ok) {
-                    showAlert('Account created successfully! You can now log in in-game using /login <username> <password>', 'success');
+                    showAlert('Account created successfully! You can now sign in via the UCP login screen.', 'success');
                     form.reset();
                 } else {
                     showAlert(data.error || 'Registration failed. Please try again.', 'error');
