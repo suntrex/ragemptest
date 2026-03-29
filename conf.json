@@ -8,6 +8,6 @@
 	"allow-cef-debugging": true,
 	"api-threading-debugging": true,
 	"port": 22005,
-	"packages": ["admin"],
+	"packages": ["admin", "webpanel"],
 	"client_packages": ["admin"]
 }

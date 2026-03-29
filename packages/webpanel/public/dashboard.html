@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Control Panel</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <style>
+        /* ── Layout ─────────────────────────────────────────────────────────── */
+        body { display: flex; height: 100vh; overflow: hidden; }
+
+        /* ── Sidebar ─────────────────────────────────────────────────────────── */
+        #sidebar {
+            width: var(--sidebar-w);
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 20px 16px 16px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #1a1f2e 0%, var(--bg-panel) 100%);
+        }
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-logo .logo-icon { font-size: 22px; }
+        .sidebar-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .sidebar-user .avatar {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #000;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .sidebar-user .username {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        nav { flex: 1; padding: 10px 0; }
+        .nav-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 10px 16px 4px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            border-left: 3px solid transparent;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+        .nav-item.active {
+            background: rgba(232,160,32,0.08);
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
+        .nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+        .nav-badge {
+            margin-left: auto;
+            background: var(--green);
+            color: #000;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 1px 6px;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+        .btn-logout {
+            width: 100%;
+            padding: 9px;
+            background: rgba(192,57,43,0.15);
+            border: 1px solid rgba(192,57,43,0.4);
+            border-radius: var(--radius);
+            color: #e74c3c;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-logout:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+        /* ── Main Content ────────────────────────────────────────────────────── */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #topbar {
+            height: 54px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        #topbar h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        #topbar .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        #content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* ── Stats Bar ───────────────────────────────────────────────────────── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .stat-card .stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+        }
+        .stat-card.accent  .stat-value { color: var(--accent); }
+        .stat-card.green   .stat-value { color: var(--green);  }
+        .stat-card.red     .stat-value { color: var(--red);    }
+        .stat-card.blue    .stat-value { color: var(--blue);   }
+
+        /* ── Card / Panel ────────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-dark);
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .card-body {
+            padding: 18px;
+            overflow: auto;
+        }
+        .card-body.no-pad { padding: 0; }
+
+        /* ── Search ──────────────────────────────────────────────────────────── */
+        .search-bar {
+            position: relative;
+        }
+        .search-bar input {
+            padding-left: 36px;
+        }
+        .search-bar .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        /* ── Active Connection Card ───────────────────────────────────────────── */
+        .conn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 12px;
+        }
+        .conn-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            transition: border-color 0.2s;
+        }
+        .conn-card:hover { border-color: var(--accent); }
+        .conn-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .conn-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            border: 2px solid var(--green);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--green);
+            flex-shrink: 0;
+        }
+        .conn-name { font-size: 14px; font-weight: 700; }
+        .conn-id   { font-size: 11px; color: var(--text-muted); }
+        .conn-meta {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .conn-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        /* ── Permission Grid (in modal) ──────────────────────────────────────── */
+        .perm-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .perm-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 12px;
+            gap: 8px;
+        }
+        .perm-label { font-size: 12px; font-weight: 600; color: var(--text); }
+
+        /* ── Admin Users Panel ───────────────────────────────────────────────── */
+        .admin-user-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+        }
+        .admin-user-row:last-child { margin-bottom: 0; }
+        .admin-user-row .au-avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #000;
+            font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .admin-user-row .au-name {
+            font-size: 13px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        /* ── Form Groups (modal) ─────────────────────────────────────────────── */
+        .form-row { margin-bottom: 14px; }
+        .form-row label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        /* ── Inline loader ───────────────────────────────────────────────────── */
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Section panels (shown/hidden by nav) ────────────────────────────── */
+        .view { display: none; }
+        .view.active { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <span class="logo-icon">🛡️</span>
+            ACP
+        </div>
+        <div class="sidebar-subtitle">RAGE:MP Admin Panel</div>
+    </div>
+
+    <div class="sidebar-user">
+        <div class="avatar" id="sidebar-avatar">?</div>
+        <div>
+            <div class="username" id="sidebar-username">Loading…</div>
+            <div>Panel Admin</div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-section-label">Overview</div>
+        <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+            <span class="nav-icon">📊</span> Dashboard
+        </div>
+
+        <div class="nav-section-label">Management</div>
+        <div class="nav-item" data-view="connections" onclick="switchView('connections')">
+            <span class="nav-icon">🔌</span> Active Connections
+            <span class="nav-badge" id="conn-count-badge">0</span>
+        </div>
+        <div class="nav-item" data-view="users" onclick="switchView('users')">
+            <span class="nav-icon">👥</span> User Management
+        </div>
+
+        <div class="nav-section-label">System</div>
+        <div class="nav-item" data-view="panel-admins" onclick="switchView('panel-admins')">
+            <span class="nav-icon">🔑</span> Panel Admins
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <button class="btn-logout" onclick="logout()">⬅ Sign Out</button>
+    </div>
+</aside>
+
+<!-- Main -->
+<div id="main">
+    <div id="topbar">
+        <h2 id="topbar-title">Dashboard</h2>
+        <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div id="content">
+
+        <!-- ── Dashboard view ─────────────────────────────────────────────── -->
+        <div class="view active" id="view-dashboard">
+            <div class="stats-bar" id="stats-bar">
+                <div class="stat-card green">
+                    <div class="stat-label">Online Players</div>
+                    <div class="stat-value" id="stat-online">–</div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-label">Total Users</div>
+                    <div class="stat-value" id="stat-total">–</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-label">Banned</div>
+                    <div class="stat-value" id="stat-banned">–</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-label">Admins</div>
+                    <div class="stat-value" id="stat-admins">–</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Recently Online</span>
+                </div>
+                <div class="card-body no-pad">
+                    <table class="data-table" id="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Social Club</th>
+                                <th>Admin Level</th>
+                                <th>Last Seen</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Active Connections view ────────────────────────────────────── -->
+        <div class="view" id="view-connections">
+            <div style="display:flex; gap:10px; margin-bottom:18px; align-items:center;">
+                <span style="font-size:13px; color:var(--text-muted);">Auto-refreshing every 5 s</span>
+                <button class="btn btn-ghost btn-sm" onclick="loadConnections()">🔄 Refresh Now</button>
+            </div>
+            <div class="conn-grid" id="conn-grid">
+                <div class="empty-state" style="grid-column:1/-1">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── User Management view ───────────────────────────────────────── -->
+        <div class="view" id="view-users">
+            <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center;">
+                <div class="search-bar" style="flex:1; min-width:200px;">
+                    <span class="search-icon">🔍</span>
+                    <input type="search" id="user-search" placeholder="Search by name or Social Club…" oninput="filterUsers()" />
+                </div>
+                <select id="filter-level" onchange="filterUsers()" style="width:160px;">
+                    <option value="">All Levels</option>
+                    <option value="0">No Access</option>
+                    <option value="1">Moderator</option>
+                    <option value="2">Admin</option>
+                    <option value="3">Super Admin</option>
+                </select>
+                <select id="filter-banned" onchange="filterUsers()" style="width:140px;">
+                    <option value="">All Status</option>
+                    <option value="banned">Banned</option>
+                    <option value="active">Active</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Players</span>
+                    <span id="user-count" style="font-size:12px; color:var(--text-muted);">–</span>
+                </div>
+                <div class="card-body no-pad" style="overflow-x:auto;">
+                    <table class="data-table" id="user-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Social Club</th>
+                                <th>Admin Level</th>
+                                <th>Permissions</th>
+                                <th>Status</th>
+                                <th>Last Seen</th>
+                                <th style="text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Panel Admins view ──────────────────────────────────────────── -->
+        <div class="view" id="view-panel-admins">
+            <div style="margin-bottom:18px;">
+                <button class="btn btn-primary" onclick="openAddAdminModal()">＋ Add Admin</button>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Web Panel Admins</span>
+                </div>
+                <div class="card-body" id="panel-admins-body">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ── Toast container ───────────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── Modals (built dynamically, placeholder here) ─────────────────────────── -->
+<div id="modal-container"></div>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

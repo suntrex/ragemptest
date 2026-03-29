@@ -1,5 +1,23 @@
 'use strict';
 
+const fs   = require('fs');
+const path = require('path');
+
+// ─── Users.json Integration ───────────────────────────────────────────────────
+// When the webpanel package is loaded it maintains packages/webpanel/data/users.json.
+// This package reads from that file so web-panel permission/ban changes persist
+// across server restarts and take effect in-game immediately.
+const USERS_FILE = path.join(__dirname, '..', 'webpanel', 'data', 'users.json');
+
+function loadUsers() {
+    try {
+        if (fs.existsSync(USERS_FILE)) {
+            return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+        }
+    } catch { /* ignore parse errors */ }
+    return {};
+}
+
 // ─── Admin Level Configuration ────────────────────────────────────────────────
 // Set a player's admin level in-game via the setadmin command or by adding
 // their Social Club name to HARDCODED_ADMINS below.
@@ -27,7 +45,17 @@ function getAdminLevel(player) {
     if (HARDCODED_ADMINS.includes(player.socialClub)) {
         return ADMIN_LEVEL.SUPERADMIN;
     }
-    return playerAdminLevels.get(player.id) || ADMIN_LEVEL.NONE;
+    // Check the in-memory override first (set via /setadmin command this session).
+    if (playerAdminLevels.has(player.id)) {
+        return playerAdminLevels.get(player.id);
+    }
+    // Fall back to persisted level from the web panel users.json.
+    const users = loadUsers();
+    const record = users[player.socialClub];
+    if (record && typeof record.adminLevel === 'number') {
+        return record.adminLevel;
+    }
+    return ADMIN_LEVEL.NONE;
 }
 
 function isAdmin(player, minLevel = ADMIN_LEVEL.MOD) {

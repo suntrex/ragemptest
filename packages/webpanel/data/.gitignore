@@ -1,0 +1,4 @@
+# Runtime data files are created automatically on first server start.
+# They contain sensitive credentials and player data – do not commit them.
+admins.json
+users.json

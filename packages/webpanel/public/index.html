@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Control Panel – Login</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+        .login-wrapper {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .login-logo .logo-icon {
+            font-size: 48px;
+            line-height: 1;
+            display: block;
+        }
+        .login-logo h1 {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-top: 12px;
+            letter-spacing: 1px;
+        }
+        .login-logo p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .login-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 32px 28px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(232,160,32,0.15);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: #000;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 8px;
+        }
+        .btn-login:hover  { background: var(--accent2); }
+        .btn-login:active { transform: scale(0.98); }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error-msg {
+            background: rgba(192,57,43,0.15);
+            border: 1px solid var(--red);
+            border-radius: var(--radius);
+            color: #e74c3c;
+            font-size: 13px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .error-msg.visible { display: block; }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-logo">
+            <span class="logo-icon">🛡️</span>
+            <h1>ADMIN CONTROL PANEL</h1>
+            <p>RAGE:MP Server Management</p>
+        </div>
+
+        <div class="login-card">
+            <div id="error-msg" class="error-msg" role="alert"></div>
+
+            <form id="login-form" novalidate>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        autocomplete="username"
+                        placeholder="Enter your username"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        autocomplete="current-password"
+                        placeholder="Enter your password"
+                        required
+                    />
+                </div>
+                <button type="submit" class="btn-login" id="login-btn">Sign In</button>
+            </form>
+        </div>
+
+        <div class="login-footer">RAGE:MP Admin Control Panel</div>
+    </div>
+
+    <script>
+        const form    = document.getElementById('login-form');
+        const errEl   = document.getElementById('error-msg');
+        const loginBtn = document.getElementById('login-btn');
+
+        function showError(msg) {
+            errEl.textContent = msg;
+            errEl.classList.add('visible');
+        }
+        function hideError() {
+            errEl.classList.remove('visible');
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                return showError('Please enter username and password.');
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing in…';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+                const data = await res.json();
+
+                if (res.ok && data.ok) {
+                    window.location.href = '/dashboard';
+                } else {
+                    showError(data.error || 'Login failed. Check your credentials.');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                }
+            } catch {
+                showError('Could not reach the server. Please try again.');
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+            }
+        });
+
+        // If already logged in, redirect.
+        fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard'; }).catch(() => {});
+    </script>
+</body>
+</html>
