@@ -18,6 +18,10 @@ const ADMIN_LEVEL = {
 // For persistence, replace with a database read/write.
 const playerAdminLevels = new Map();
 
+// Holds the active restart countdown interval so a second /restartserver call
+// cannot start a parallel countdown.
+let restartCountdownTick = null;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getAdminLevel(player) {
     if (HARDCODED_ADMINS.includes(player.socialClub)) {
@@ -282,6 +286,30 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
         target.setVariable('adminLevel', playerAdminLevels.get(target.id));
         notifyAdmin(player, `Set admin level of ${target.name} to ${level}.`);
         notifyAdmin(target, `Your admin level was set to ${level} by ${player.name}.`);
+        return;
+    }
+
+    if (cmd === 'restartserver') {
+        // Only superadmins can restart the server.
+        if (!isAdmin(player, ADMIN_LEVEL.SUPERADMIN)) return notifyError(player, 'No permission.');
+        if (restartCountdownTick !== null) {
+            return notifyError(player, 'A server restart is already in progress.');
+        }
+        const delay = 5; // seconds before restart
+        mp.players.broadcast(`!{#ff0000}[SERVER] !{#ffffff}Server restart in ${delay} seconds – initiated by ${player.name}.`);
+        let remaining = delay - 1;
+        restartCountdownTick = setInterval(() => {
+            if (remaining <= 0) {
+                clearInterval(restartCountdownTick);
+                restartCountdownTick = null;
+                mp.players.broadcast('!{#ff0000}[SERVER] !{#ffffff}Restarting now...');
+                // Exit the process. A process manager (pm2 / restart loop) will bring it back up.
+                setTimeout(() => process.exit(0), 500);
+            } else {
+                mp.players.broadcast(`!{#ff0000}[SERVER] !{#ffffff}Restarting in ${remaining}...`);
+                remaining--;
+            }
+        }, 1000);
         return;
     }
 });
