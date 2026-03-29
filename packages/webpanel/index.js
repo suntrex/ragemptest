@@ -31,6 +31,7 @@ const PUBLIC_DIR    = path.join(__dirname, 'public');
 const ADMINS_FILE   = path.join(DATA_DIR, 'admins.json');
 const USERS_FILE    = path.join(DATA_DIR, 'users.json');
 const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
+const RANKS_FILE    = path.join(DATA_DIR, 'ranks.json');
 
 // Ensure data directory exists on first run.
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -48,6 +49,58 @@ function defaultPermissions() {
         canSetTime:       false,
         vip:              false,
     };
+}
+
+// ── Rank / Role System ────────────────────────────────────────────────────────
+/** Generate a short random hex ID. */
+function generateId() {
+    return crypto.randomBytes(8).toString('hex');
+}
+
+const NOW = () => new Date().toISOString();
+
+function defaultRanks() {
+    const ts = NOW();
+    return [
+        {
+            id: 'player', name: 'Spieler', color: '#7a8199', priority: 0,
+            description: 'Standard-Spieler ohne besondere Rechte.',
+            permissions: defaultPermissions(), createdAt: ts, updatedAt: ts,
+        },
+        {
+            id: 'vip', name: 'VIP', color: '#f39c12', priority: 10,
+            description: 'VIP-Spieler mit besonderen Privilegien.',
+            permissions: { ...defaultPermissions(), vip: true }, createdAt: ts, updatedAt: ts,
+        },
+        {
+            id: 'moderator', name: 'Moderator', color: '#5dade2', priority: 20,
+            description: 'Moderatoren können Spieler kicken und teleportieren.',
+            permissions: { ...defaultPermissions(), canKickPlayers: true, canTeleport: true, canHealOthers: true },
+            createdAt: ts, updatedAt: ts,
+        },
+        {
+            id: 'admin', name: 'Administrator', color: '#e8a020', priority: 30,
+            description: 'Vollständige Administrations-Rechte.',
+            permissions: {
+                canSpawnVehicle: true, canSetWeather: true, canKickPlayers: true, canBanPlayers: true,
+                canTeleport: true, canGiveWeapons: true, canHealOthers: true, canSetTime: true, vip: true,
+            },
+            createdAt: ts, updatedAt: ts,
+        },
+    ];
+}
+
+function loadRanks() {
+    if (!fs.existsSync(RANKS_FILE)) {
+        const def = defaultRanks();
+        fs.writeFileSync(RANKS_FILE, JSON.stringify(def, null, 2));
+        return def;
+    }
+    try { return JSON.parse(fs.readFileSync(RANKS_FILE, 'utf8')); } catch { return defaultRanks(); }
+}
+
+function saveRanks(ranks) {
+    fs.writeFileSync(RANKS_FILE, JSON.stringify(ranks, null, 2));
 }
 
 // ── Panel Admin Accounts ──────────────────────────────────────────────────────
@@ -842,7 +895,7 @@ const server = http.createServer(async (req, res) => {
         if (!body) return jsonErr(res, 400, 'Invalid JSON.');
         const users = loadUsers();
         if (!users[socialClub]) return jsonErr(res, 404, 'User not found.');
-        const allowed = ['adminLevel', 'permissions', 'notes', 'banned', 'banReason'];
+        const allowed = ['adminLevel', 'permissions', 'notes', 'banned', 'banReason', 'rankId'];
         allowed.forEach(k => { if (k in body) users[socialClub][k] = body[k]; });
         saveUsers(users);
         applyToLivePlayer(socialClub, users[socialClub]);
@@ -934,6 +987,109 @@ const server = http.createServer(async (req, res) => {
         jsonOk(res, { ok: true, message: 'Server is restarting\u2026' });
         setTimeout(() => process.exit(0), 1000);
         return;
+    }
+
+    // ── Rank / Role Management API ────────────────────────────────────────────
+
+    // GET /api/ranks – list all ranks (UCP admin >= 1)
+    if (pathname === '/api/ranks' && method === 'GET') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        return jsonOk(res, loadRanks());
+    }
+
+    // POST /api/ranks – create a new rank (UCP admin >= 2)
+    if (pathname === '/api/ranks' && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const body = await parseBody(req);
+        if (!body || !body.name || typeof body.name !== 'string') return jsonErr(res, 400, 'name is required.');
+        const name = body.name.trim();
+        if (!name) return jsonErr(res, 400, 'name cannot be empty.');
+        const ranks = loadRanks();
+        if (ranks.find(r => r.name.toLowerCase() === name.toLowerCase())) return jsonErr(res, 409, 'A rank with that name already exists.');
+        const now = NOW();
+        const rank = {
+            id:          generateId(),
+            name,
+            color:       typeof body.color === 'string' ? body.color : '#7a8199',
+            priority:    typeof body.priority === 'number' ? Math.max(0, Math.floor(body.priority)) : ranks.length * 10,
+            description: typeof body.description === 'string' ? body.description : '',
+            permissions: Object.assign(defaultPermissions(), typeof body.permissions === 'object' && body.permissions !== null ? body.permissions : {}),
+            createdAt:   now,
+            updatedAt:   now,
+        };
+        ranks.push(rank);
+        ranks.sort((a, b) => a.priority - b.priority);
+        saveRanks(ranks);
+        return jsonOk(res, rank);
+    }
+
+    // PUT /api/ranks/:id – update a rank (UCP admin >= 2)
+    const rankEdit = pathname.match(/^\/api\/ranks\/([^/]+)$/);
+    if (rankEdit && method === 'PUT') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const rankId = decodeURIComponent(rankEdit[1]);
+        const body = await parseBody(req);
+        if (!body) return jsonErr(res, 400, 'Invalid JSON.');
+        const ranks = loadRanks();
+        const rank  = ranks.find(r => r.id === rankId);
+        if (!rank) return jsonErr(res, 404, 'Rank not found.');
+        if (typeof body.name === 'string') {
+            const trimmed = body.name.trim();
+            if (!trimmed) return jsonErr(res, 400, 'name cannot be empty.');
+            const conflict = ranks.find(r => r.id !== rankId && r.name.toLowerCase() === trimmed.toLowerCase());
+            if (conflict) return jsonErr(res, 409, 'A rank with that name already exists.');
+            rank.name = trimmed;
+        }
+        if (typeof body.color       === 'string') rank.color       = body.color;
+        if (typeof body.priority    === 'number') rank.priority    = Math.max(0, Math.floor(body.priority));
+        if (typeof body.description === 'string') rank.description = body.description;
+        if (body.permissions && typeof body.permissions === 'object') {
+            rank.permissions = Object.assign(defaultPermissions(), body.permissions);
+        }
+        rank.updatedAt = NOW();
+        ranks.sort((a, b) => a.priority - b.priority);
+        saveRanks(ranks);
+        return jsonOk(res, rank);
+    }
+
+    // DELETE /api/ranks/:id – delete a rank (UCP admin >= 2)
+    const rankDel = pathname.match(/^\/api\/ranks\/([^/]+)$/);
+    if (rankDel && method === 'DELETE') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const rankId = decodeURIComponent(rankDel[1]);
+        const ranks  = loadRanks();
+        const idx    = ranks.findIndex(r => r.id === rankId);
+        if (idx === -1) return jsonErr(res, 404, 'Rank not found.');
+        ranks.splice(idx, 1);
+        saveRanks(ranks);
+        // Clear rankId from any users that had this rank
+        const users = loadUsers();
+        let changed = false;
+        Object.values(users).forEach(u => {
+            if (u.rankId === rankId) { delete u.rankId; changed = true; }
+        });
+        if (changed) saveUsers(users);
+        return jsonOk(res, { ok: true });
+    }
+
+    // POST /api/ucp-users/:socialClub/rank – assign rank to player (UCP admin >= 2)
+    const assignRank = pathname.match(/^\/api\/ucp-users\/([^/]+)\/rank$/);
+    if (assignRank && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const socialClub = decodeURIComponent(assignRank[1]);
+        const body = await parseBody(req);
+        if (!body) return jsonErr(res, 400, 'Invalid JSON.');
+        const users = loadUsers();
+        if (!users[socialClub]) return jsonErr(res, 404, 'User not found.');
+        const rankId = body.rankId || null;
+        if (rankId !== null) {
+            const ranks = loadRanks();
+            if (!ranks.find(r => r.id === rankId)) return jsonErr(res, 404, 'Rank not found.');
+        }
+        users[socialClub].rankId = rankId;
+        saveUsers(users);
+        applyToLivePlayer(socialClub, users[socialClub]);
+        return jsonOk(res, users[socialClub]);
     }
 
     // Fallback 404
