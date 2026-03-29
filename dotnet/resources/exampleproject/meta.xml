@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<meta>
+  <info name="Example Project" author="808masterus" type="gamemode"/>
+  
+  <!-- Gamemode library -->
+  <script src="GTAWExamples.dll" />
+  
+</meta>

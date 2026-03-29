@@ -1,12 +1,11 @@
 {
-    "maxplayers": 100,
-    "name": "RageMP Admin Test Server",
-    "gamemode": "freeroam",
-    "address": "0.0.0.0",
-    "port": 22005,
-    "announce": false,
-    "csharp": "disable",
-    "resources": [],
-    "packages": ["admin"],
-    "client_packages": ["admin"]
+	"maxplayers" : 32,
+	"name" : "RAGEMP Unofficial Server", 
+	"gamemode" : "Roleplay", 
+	"stream-distance" : 250.0,
+	"announce" : false,
+	"csharp" : "enabled",
+	"allow-cef-debugging": true,
+	"api-threading-debugging": true,
+	"port": 22005
 }
