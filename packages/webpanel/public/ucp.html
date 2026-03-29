@@ -242,7 +242,7 @@
                     <div class="form-group">
                         <label for="reg-username">Username</label>
                         <input type="text" id="reg-username" autocomplete="username" placeholder="Choose a username" required />
-                        <div class="hint">3–20 characters: letters, numbers, underscore</div>
+                        <div class="hint">3–20 characters: letters, numbers, underscore (stored lowercase)</div>
                     </div>
                     <div class="form-group">
                         <label for="reg-password">Password</label>
@@ -510,7 +510,8 @@ registerForm.addEventListener('submit', async (e) => {
             regErr.textContent = data.error || 'Registration failed. Please try again.';
             regErr.classList.add('visible');
         }
-    } catch {
+    } catch (err) {
+        console.error('[UCP register]', err);
         regErr.textContent = 'Could not reach the server. Please try again.';
         regErr.classList.add('visible');
     } finally {
