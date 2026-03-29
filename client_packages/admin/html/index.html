@@ -11,19 +11,46 @@
 <div id="overlay" onclick="handleOverlayClick(event)"></div>
 
 <div id="menu">
-    <div id="menu-header">
-        <span id="menu-title">⚙ Admin Menu</span>
-        <button id="close-btn" onclick="closeMenu()">✕</button>
+
+    <!-- ── Left Sidebar ──────────────────────────────────────────────────── -->
+    <div id="sidebar">
+        <div id="sidebar-logo">
+            <span class="logo-icon">⚙</span>
+            <span class="logo-text">Admin Panel</span>
+        </div>
+        <nav id="sidebar-nav">
+            <button class="nav-btn active" onclick="switchTab('player')">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Player</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('vehicle')">
+                <span class="nav-icon">🚗</span>
+                <span class="nav-label">Vehicle</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('weapons')">
+                <span class="nav-icon">🔫</span>
+                <span class="nav-label">Weapons</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('world')">
+                <span class="nav-icon">🌍</span>
+                <span class="nav-label">World</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('players')">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Players</span>
+            </button>
+        </nav>
+        <div id="sidebar-footer">RAGE:MP Server</div>
     </div>
 
-    <!-- Tab bar -->
-    <div id="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('player')">Player</button>
-        <button class="tab-btn" onclick="switchTab('vehicle')">Vehicle</button>
-        <button class="tab-btn" onclick="switchTab('weapons')">Weapons</button>
-        <button class="tab-btn" onclick="switchTab('world')">World</button>
-        <button class="tab-btn" onclick="switchTab('players')">Players</button>
-    </div>
+    <!-- ── Main Content ───────────────────────────────────────────────────── -->
+    <div id="main-content">
+
+        <!-- Content header -->
+        <div id="content-header">
+            <span id="page-title">Player</span>
+            <button id="close-btn" onclick="closeMenu()">✕</button>
+        </div>
 
     <!-- ── Player Tab ─────────────────────────────────────────────────────── -->
     <div id="tab-player" class="tab-content active">
@@ -221,9 +248,11 @@
         </div>
     </div>
 
-    <!-- Notification -->
-    <div id="notification" class="hidden"></div>
-</div>
+        <!-- Notification -->
+        <div id="notification" class="hidden"></div>
+
+    </div><!-- /main-content -->
+</div><!-- /menu -->
 
 <!-- ── Login Overlay (shown on player join) ──────────────────────────────── -->
 <div id="login-overlay">
@@ -234,12 +263,13 @@
                 <span class="art-icon">🎮</span>
                 <span class="art-title">RAGE:MP Server</span>
                 <span class="art-subtitle">Multiplayer Experience</span>
+                <span class="art-line"></span>
             </div>
         </div>
 
         <!-- Right form panel -->
         <div id="login-form-panel">
-            <div id="login-title">WELCOME!</div>
+            <div id="login-title">WELCOME<span>!</span></div>
             <div id="login-playercount">
                 Already have an account? Enter your username and password.<br>
                 There are currently <strong id="login-online-count">–</strong> players online.
