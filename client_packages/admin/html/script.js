@@ -41,15 +41,24 @@ function closeMenu() {
 }
 
 /* ── Tab Switching ────────────────────────────────────────────────────────── */
+const TAB_TITLES = {
+    player:  'Player',
+    vehicle: 'Vehicle',
+    weapons: 'Weapons',
+    world:   'World',
+    players: 'Players'
+};
+
 function switchTab(name) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    // Find the button whose onclick attribute matches the tab name safely via iteration.
-    document.querySelectorAll('.tab-btn').forEach(b => {
+    document.querySelectorAll('.nav-btn').forEach(b => {
         if (b.getAttribute('onclick') === `switchTab('${name}')`) b.classList.add('active');
     });
     const activeContent = document.getElementById(`tab-${name}`);
     if (activeContent) activeContent.classList.add('active');
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = TAB_TITLES[name] || name;
 }
 
 /* ── Player Tab ───────────────────────────────────────────────────────────── */
@@ -165,7 +174,7 @@ function receivePlayerList(list) {
         row.className = 'player-row' + (p.id === selectedPlayerId ? ' selected' : '');
         row.dataset.id   = p.id;
         row.dataset.name = p.name;
-        row.innerHTML = `<span class="player-id">${p.id}</span><span class="player-name">${escapeHtml(p.name)}</span>`;
+        row.innerHTML = `<div class="player-avatar">${escapeHtml(p.name.charAt(0))}</div><span class="player-id">${p.id}</span><span class="player-name">${escapeHtml(p.name)}</span>`;
         row.addEventListener('click', () => selectPlayer(p.id, p.name));
         container.appendChild(row);
     });
