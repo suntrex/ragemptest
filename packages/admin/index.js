@@ -4,10 +4,8 @@ const fs   = require('fs');
 const path = require('path');
 
 // ─── Users.json Integration ───────────────────────────────────────────────────
-// When the webpanel package is loaded it maintains packages/webpanel/data/users.json.
-// This package reads from that file so web-panel permission/ban changes persist
-// across server restarts and take effect in-game immediately.
-const USERS_FILE = path.join(__dirname, '..', 'webpanel', 'data', 'users.json');
+const USERS_FILE    = path.join(__dirname, '..', 'webpanel', 'data', 'users.json');
+const ACCOUNTS_FILE = path.join(__dirname, '..', 'webpanel', 'data', 'accounts.json');
 
 function loadUsers() {
     try {
@@ -16,6 +14,21 @@ function loadUsers() {
         }
     } catch { /* ignore parse errors */ }
     return {};
+}
+
+function loadAccounts() {
+    try {
+        if (fs.existsSync(ACCOUNTS_FILE)) {
+            return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+        }
+    } catch { /* ignore parse errors */ }
+    return {};
+}
+
+function saveAccounts(accounts) {
+    try {
+        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+    } catch { /* ignore */ }
 }
 
 // ─── Admin Level Configuration ────────────────────────────────────────────────
@@ -79,10 +92,97 @@ function toBoolean(value) {
     return value === true || value === 'true';
 }
 
+// ─── In-Game Authentication ───────────────────────────────────────────────────
+// Tracks which players have successfully authenticated this session.
+// Players are identified by their in-game ID (resets on disconnect).
+const authenticatedPlayers = new Set(); // player.id values
+const loginAttempts        = new Map(); // player.id → failed attempt count
+const MAX_LOGIN_ATTEMPTS   = 5;
+
+/** Returns true if the player has authenticated (logged in) this session. */
+function isAuthenticated(player) {
+    return authenticatedPlayers.has(player.id);
+}
+
+/**
+ * Verify UCP credentials and link Social Club to account on success.
+ * Returns { ok, reason, adminLevel, permissions } synchronously.
+ */
+function verifyIngameLogin(username, password, socialClub) {
+    const accounts = loadAccounts();
+    const account  = accounts[username.trim().toLowerCase()];
+    if (!account) return { ok: false, reason: 'Account not found. Register at the UCP first.' };
+
+    // Simple scrypt-based verification (same logic as webpanel)
+    const crypto = require('crypto');
+    const stored = account.passwordHash;
+    if (!stored || !stored.startsWith('scrypt:')) return { ok: false, reason: 'Invalid account data.' };
+    const parts = stored.split(':');
+    if (parts.length !== 3) return { ok: false, reason: 'Invalid account data.' };
+    const [, salt, expectedHash] = parts;
+    try {
+        const actualHash = crypto.scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+        if (!crypto.timingSafeEqual(Buffer.from(actualHash, 'hex'), Buffer.from(expectedHash, 'hex'))) {
+            return { ok: false, reason: 'Wrong password.' };
+        }
+    } catch {
+        return { ok: false, reason: 'Login error. Please try again.' };
+    }
+
+    // Credentials are valid – link Social Club if not yet linked
+    if (!account.socialClub) {
+        account.socialClub = socialClub;
+    } else if (account.socialClub !== socialClub) {
+        return { ok: false, reason: 'This UCP account is linked to a different GTA account.' };
+    }
+    account.lastLogin = new Date().toISOString();
+    saveAccounts(accounts);
+
+    // Load game-level permissions from users.json
+    const users    = loadUsers();
+    const userData = users[socialClub] || {};
+    return {
+        ok:          true,
+        adminLevel:  userData.adminLevel  || 0,
+        permissions: userData.permissions || {},
+    };
+}
+
 // ─── Server Events ────────────────────────────────────────────────────────────
 mp.events.add('playerJoin', (player) => {
     player.setVariable('adminLevel', getAdminLevel(player));
-    notifyAdmin(player, 'Type /admin to open the admin menu (if you have access).');
+});
+
+mp.events.add('playerQuit', (player) => {
+    authenticatedPlayers.delete(player.id);
+    loginAttempts.delete(player.id);
+});
+
+// ─── In-game Login Event (called from client via callRemote) ──────────────────
+mp.events.add('auth:login', (player, username, password) => {
+    const attempts = (loginAttempts.get(player.id) || 0);
+    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+        player.kick('Too many failed login attempts.');
+        return;
+    }
+    const result = verifyIngameLogin(String(username), String(password), player.socialClub);
+    if (result.ok) {
+        authenticatedPlayers.add(player.id);
+        loginAttempts.delete(player.id);
+        // Apply permissions
+        player.setVariable('adminLevel',  result.adminLevel);
+        player.setVariable('permissions', JSON.stringify(result.permissions));
+        player.call('auth:loginResult', [true, '']);
+        notifyAdmin(player, `Welcome back! Admin level: ${result.adminLevel}.`);
+        mp.events.call('console:log', 'AUTH', `${player.name} logged in as ${username}.`);
+    } else {
+        loginAttempts.set(player.id, attempts + 1);
+        const remaining = MAX_LOGIN_ATTEMPTS - (attempts + 1);
+        player.call('auth:loginResult', [false, result.reason + (remaining > 0 ? ` (${remaining} attempts left)` : '')]);
+        if (remaining <= 0) {
+            setTimeout(() => player.kick('Too many failed login attempts.'), 1500);
+        }
+    }
 });
 
 // ─── Client → Server Admin Actions ───────────────────────────────────────────
@@ -298,6 +398,36 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
     const parts = cmdRaw.trim().split(/\s+/);
     const cmd = parts[0].toLowerCase();
 
+    if (cmd === 'login') {
+        const username = parts[1];
+        const password = parts[2];
+        if (!username || !password) {
+            return player.outputChatBox('!{#ff0000}[AUTH] !{#ffffff}Usage: /login <username> <password>');
+        }
+        // Delegate to the same handler the CEF login form uses
+        const attempts = (loginAttempts.get(player.id) || 0);
+        if (attempts >= MAX_LOGIN_ATTEMPTS) {
+            player.kick('Too many failed login attempts.');
+            return;
+        }
+        const result = verifyIngameLogin(username, password, player.socialClub);
+        if (result.ok) {
+            authenticatedPlayers.add(player.id);
+            loginAttempts.delete(player.id);
+            player.setVariable('adminLevel',  result.adminLevel);
+            player.setVariable('permissions', JSON.stringify(result.permissions));
+            player.call('auth:loginResult', [true, '']);
+            notifyAdmin(player, `Logged in successfully! Admin level: ${result.adminLevel}.`);
+            mp.events.call('console:log', 'AUTH', `${player.name} logged in via /login as ${username}.`);
+        } else {
+            loginAttempts.set(player.id, attempts + 1);
+            const remaining = MAX_LOGIN_ATTEMPTS - (attempts + 1);
+            player.outputChatBox(`!{#ff0000}[AUTH] !{#ffffff}${result.reason}${remaining > 0 ? ` (${remaining} attempts left)` : ''}`);
+            if (remaining <= 0) setTimeout(() => player.kick('Too many failed login attempts.'), 1500);
+        }
+        return;
+    }
+
     if (cmd === 'admin') {
         if (!isAdmin(player)) return notifyError(player, 'You do not have admin access.');
         player.call('admin:openMenu');
@@ -340,8 +470,16 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
         }, 1000);
         return;
     }
+
+    // Unknown command – notify the player so RAGE:MP does not show a generic
+    // "Unknown command" message from the client.
+    const hint = isAuthenticated(player) ? '' : ' Type /login to authenticate.';
+    player.outputChatBox(`!{#888888}Unknown command: /${cmd}.${hint}`);
 });
 
 mp.events.add('playerReady', (player) => {
-    player.outputChatBox('!{#00ff88}Welcome! Type /admin to open the admin menu (requires admin access).');
+    // Show login overlay via CEF.
+    player.call('auth:showLogin');
+    player.outputChatBox('!{#00ff88}Welcome! Please log in with your UCP account using the login screen or /login <username> <password>');
+    player.outputChatBox('!{#aaaaaa}No account yet? Register at: http://<server-ip>:8080/register');
 });

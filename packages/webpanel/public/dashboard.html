@@ -390,10 +390,18 @@
         <div class="nav-item" data-view="panel-admins" onclick="switchView('panel-admins')">
             <span class="nav-icon">🔑</span> Panel Admins
         </div>
+        <div class="nav-item" data-view="console" onclick="switchView('console')">
+            <span class="nav-icon">🖥️</span> In-Game Console
+        </div>
     </nav>
 
     <div class="sidebar-footer">
         <button class="btn-logout" onclick="logout()">⬅ Sign Out</button>
+        <div style="margin-top:8px; font-size:11px; color:var(--text-muted); text-align:center;">
+            <a href="/ucp" target="_blank" style="color:var(--accent);">Player UCP</a>
+            &nbsp;|&nbsp;
+            <a href="/register" target="_blank" style="color:var(--accent);">Register</a>
+        </div>
     </div>
 </aside>
 
@@ -516,6 +524,36 @@
                 </div>
                 <div class="card-body" id="panel-admins-body">
                     <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Console view ───────────────────────────────────────────────── -->
+        <div class="view" id="view-console">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🖥️ In-Game Console</span>
+                    <span style="font-size:12px; color:var(--text-muted);" id="console-refresh-label">Auto-refreshing every 3 s</span>
+                </div>
+                <div class="card-body">
+                    <div id="console-log" style="
+                        background: #0a0c10; border: 1px solid var(--border); border-radius: var(--radius);
+                        height: 400px; overflow-y: auto; padding: 10px 14px;
+                        font-family: 'Cascadia Code','Consolas',monospace; font-size: 12px; line-height: 1.7;
+                        margin-bottom: 12px;">
+                        <div style="color:var(--text-muted);">Loading console…</div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-bottom:6px;">
+                        <input type="text" id="console-cmd-input" placeholder="e.g. say Hello World | kick 1 reason"
+                            style="flex:1; padding:9px 14px; background:var(--bg-dark); border:1px solid var(--border);
+                            border-radius:var(--radius); color:var(--text); font-size:13px; outline:none;"
+                            onkeydown="if(event.key==='Enter') sendConsoleCmd()" />
+                        <button class="btn btn-primary" onclick="sendConsoleCmd()">Send</button>
+                        <button class="btn btn-ghost" onclick="clearConsoleView()">Clear</button>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-muted);">
+                        Commands: <code>say &lt;message&gt;</code> · <code>kick &lt;id&gt; [reason]</code>
+                    </div>
                 </div>
             </div>
         </div>

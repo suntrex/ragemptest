@@ -25,10 +25,12 @@ const crypto = require('crypto');
 const WEB_PORT             = 8080;
 const SESSION_DURATION_MS  = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_BODY_BYTES       = 1_048_576;            // 1 MB
-const DATA_DIR    = path.join(__dirname, 'data');
-const PUBLIC_DIR  = path.join(__dirname, 'public');
-const ADMINS_FILE = path.join(DATA_DIR, 'admins.json');
-const USERS_FILE  = path.join(DATA_DIR, 'users.json');
+const MAX_CONSOLE_LOGS     = 200;
+const DATA_DIR      = path.join(__dirname, 'data');
+const PUBLIC_DIR    = path.join(__dirname, 'public');
+const ADMINS_FILE   = path.join(DATA_DIR, 'admins.json');
+const USERS_FILE    = path.join(DATA_DIR, 'users.json');
+const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
 
 // Ensure data directory exists on first run.
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -79,6 +81,66 @@ function loadUsers() {
 
 function saveUsers(users) {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+// ── Player UCP Accounts ───────────────────────────────────────────────────────
+// accounts.json stores player UCP credentials, keyed by username.
+// Fields: username, passwordHash, socialClub (null until linked in-game), createdAt, lastLogin
+function loadAccounts() {
+    if (!fs.existsSync(ACCOUNTS_FILE)) {
+        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify({}, null, 2));
+    }
+    try { return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8')); } catch { return {}; }
+}
+
+function saveAccounts(accounts) {
+    fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+}
+
+// ── Console Log Buffer ────────────────────────────────────────────────────────
+// Keeps the last MAX_CONSOLE_LOGS server-side log entries for the UCP console.
+const consoleLogs = [];
+
+function logConsole(type, message) {
+    consoleLogs.push({ type, message, timestamp: new Date().toISOString() });
+    if (consoleLogs.length > MAX_CONSOLE_LOGS) consoleLogs.shift();
+    console.log(`[Console:${type}] ${message}`);
+}
+
+// ── UCP Sessions (player accounts, separate from panel-admin sessions) ────────
+const ucpSessions = new Map(); // token → { username, expires }
+
+function createUcpSession(username) {
+    const token = crypto.randomBytes(32).toString('hex');
+    ucpSessions.set(token, { username, expires: Date.now() + SESSION_DURATION_MS });
+    return token;
+}
+
+function getUcpSession(token) {
+    if (!token) return null;
+    const s = ucpSessions.get(token);
+    if (!s) return null;
+    if (Date.now() > s.expires) { ucpSessions.delete(token); return null; }
+    return s;
+}
+
+function deleteUcpSession(token) { ucpSessions.delete(token); }
+
+/** Verifies UCP player session; returns session or null (with 401/redirect). */
+function requireUcpAuth(req, res) {
+    const cookies = parseCookies(req);
+    const session = getUcpSession(cookies.ucpSession);
+    if (!session) {
+        if (req.url.startsWith('/api/ucp')) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+        } else {
+            res.writeHead(302, { Location: '/ucp' });
+            res.end();
+        }
+        return null;
+    }
+    return session;
 }
 
 /** Create or update the persisted record for a player on join. */
@@ -329,6 +391,19 @@ const server = http.createServer(async (req, res) => {
         return serveFile(res, path.join(PUBLIC_DIR, 'index.html'));
     }
 
+    if (pathname === '/register' && method === 'GET') {
+        return serveFile(res, path.join(PUBLIC_DIR, 'register.html'));
+    }
+
+    if (pathname === '/ucp' && method === 'GET') {
+        return serveFile(res, path.join(PUBLIC_DIR, 'ucp.html'));
+    }
+
+    if (pathname === '/ucp/home' && method === 'GET') {
+        if (!requireUcpAuth(req, res)) return;
+        return serveFile(res, path.join(PUBLIC_DIR, 'ucp.html'));
+    }
+
     if (pathname === '/dashboard' && method === 'GET') {
         if (!requireAuth(req, res)) return;
         return serveFile(res, path.join(PUBLIC_DIR, 'dashboard.html'));
@@ -497,6 +572,173 @@ const server = http.createServer(async (req, res) => {
         return jsonOk(res, { ok: true });
     }
 
+    // ── UCP (Player Account) API ──────────────────────────────────────────────
+
+    // POST /api/ucp-register  – create a player UCP account
+    if (pathname === '/api/ucp-register' && method === 'POST') {
+        const body = await parseBody(req);
+        if (!body || !body.username || !body.password) {
+            return jsonErr(res, 400, 'username and password are required.');
+        }
+        const username = String(body.username).trim().toLowerCase();
+        if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+            return jsonErr(res, 400, 'Username must be 3–20 characters (letters, numbers, underscore).');
+        }
+        if (String(body.password).length < 6) {
+            return jsonErr(res, 400, 'Password must be at least 6 characters.');
+        }
+        const accounts = loadAccounts();
+        if (accounts[username]) return jsonErr(res, 409, 'Username already taken.');
+        accounts[username] = {
+            username,
+            passwordHash: hashPassword(body.password),
+            socialClub:   null,
+            createdAt:    new Date().toISOString(),
+            lastLogin:    null,
+        };
+        saveAccounts(accounts);
+        logConsole('REGISTER', `New UCP account registered: ${username}`);
+        return jsonOk(res, { ok: true });
+    }
+
+    // POST /api/ucp-login  – log in to the player UCP
+    if (pathname === '/api/ucp-login' && method === 'POST') {
+        const body = await parseBody(req);
+        if (!body || !body.username || !body.password) {
+            return jsonErr(res, 400, 'username and password are required.');
+        }
+        const username = String(body.username).trim().toLowerCase();
+        const accounts = loadAccounts();
+        const account  = accounts[username];
+        if (!account || !verifyPassword(body.password, account.passwordHash)) {
+            return jsonErr(res, 401, 'Invalid username or password.');
+        }
+        account.lastLogin = new Date().toISOString();
+        saveAccounts(accounts);
+        const token = createUcpSession(username);
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `ucpSession=${token}; HttpOnly; SameSite=Strict; Path=/`,
+        });
+        res.end(JSON.stringify({ ok: true, username }));
+        return;
+    }
+
+    // POST /api/ucp-logout
+    if (pathname === '/api/ucp-logout' && method === 'POST') {
+        const cookies = parseCookies(req);
+        deleteUcpSession(cookies.ucpSession);
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': 'ucpSession=; Max-Age=0; Path=/',
+        });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+    }
+
+    // GET /api/ucp-me  – get logged-in player account info
+    if (pathname === '/api/ucp-me' && method === 'GET') {
+        const session = requireUcpAuth(req, res);
+        if (!session) return;
+        const accounts = loadAccounts();
+        const account  = accounts[session.username];
+        if (!account) return jsonErr(res, 404, 'Account not found.');
+        // Enrich with game data if Social Club is linked
+        let gameData = null;
+        if (account.socialClub) {
+            const users = loadUsers();
+            gameData = users[account.socialClub] || null;
+        }
+        return jsonOk(res, {
+            username:   account.username,
+            socialClub: account.socialClub,
+            createdAt:  account.createdAt,
+            lastLogin:  account.lastLogin,
+            adminLevel: gameData ? (gameData.adminLevel || 0) : 0,
+            permissions: gameData ? (gameData.permissions || {}) : {},
+        });
+    }
+
+    // GET /api/ucp-password  – change password (UCP user)
+    if (pathname === '/api/ucp-password' && method === 'PUT') {
+        const session = requireUcpAuth(req, res);
+        if (!session) return;
+        const body = await parseBody(req);
+        if (!body || !body.currentPassword || !body.newPassword) {
+            return jsonErr(res, 400, 'currentPassword and newPassword are required.');
+        }
+        if (String(body.newPassword).length < 6) {
+            return jsonErr(res, 400, 'New password must be at least 6 characters.');
+        }
+        const accounts = loadAccounts();
+        const account  = accounts[session.username];
+        if (!account) return jsonErr(res, 404, 'Account not found.');
+        if (!verifyPassword(body.currentPassword, account.passwordHash)) {
+            return jsonErr(res, 401, 'Current password is incorrect.');
+        }
+        account.passwordHash = hashPassword(body.newPassword);
+        saveAccounts(accounts);
+        return jsonOk(res, { ok: true });
+    }
+
+    // ── Console API (requires panel-admin auth) ───────────────────────────────
+
+    // GET /api/console  – get recent console log entries
+    if (pathname === '/api/console' && method === 'GET') {
+        if (!requireAuth(req, res)) return;
+        const since = parsed.searchParams.get('since');
+        const logs = since
+            ? consoleLogs.filter(e => e.timestamp > since)
+            : consoleLogs.slice(-100);
+        return jsonOk(res, logs);
+    }
+
+    // POST /api/console/send  – execute a server command via the UCP console
+    if (pathname === '/api/console/send' && method === 'POST') {
+        if (!requireAuth(req, res)) return;
+        const body = await parseBody(req);
+        if (!body || typeof body.command !== 'string') return jsonErr(res, 400, 'command required.');
+        const cmd = body.command.trim();
+        if (!cmd) return jsonErr(res, 400, 'command cannot be empty.');
+        // Fire a server-side event that admin package listens to
+        logConsole('UCP_CMD', `[UCP Command] ${cmd}`);
+        mp.events.call('webpanel:consoleCommand', cmd);
+        return jsonOk(res, { ok: true });
+    }
+
+    // POST /api/ingame-auth  – verify in-game login (called by internal flow)
+    if (pathname === '/api/ingame-auth' && method === 'POST') {
+        const body = await parseBody(req);
+        if (!body || !body.username || !body.password || !body.socialClub) {
+            return jsonErr(res, 400, 'username, password and socialClub are required.');
+        }
+        const username   = String(body.username).trim().toLowerCase();
+        const socialClub = String(body.socialClub);
+        const accounts   = loadAccounts();
+        const account    = accounts[username];
+        if (!account || !verifyPassword(body.password, account.passwordHash)) {
+            return jsonOk(res, { ok: false, reason: 'Invalid username or password.' });
+        }
+        // Link Social Club to account if not yet linked (or update if they re-registered)
+        if (!account.socialClub) {
+            account.socialClub = socialClub;
+        } else if (account.socialClub !== socialClub) {
+            return jsonOk(res, { ok: false, reason: 'This account is linked to a different Social Club.' });
+        }
+        account.lastLogin = new Date().toISOString();
+        saveAccounts(accounts);
+        // Load the game permissions for this player
+        const users = loadUsers();
+        const userData = users[socialClub] || null;
+        logConsole('AUTH', `Player logged in: ${username} (${socialClub})`);
+        return jsonOk(res, {
+            ok:          true,
+            username,
+            adminLevel:  userData ? (userData.adminLevel  || 0) : 0,
+            permissions: userData ? (userData.permissions || {}) : {},
+        });
+    }
+
     // Fallback 404
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
@@ -524,13 +766,38 @@ mp.events.add('playerJoin', (player) => {
     if (userData.banned) {
         player.kick(userData.banReason || 'You are banned from this server.');
     }
+    logConsole('JOIN', `${player.name} (${player.socialClub}) joined the server.`);
 });
 
-mp.events.add('playerQuit', (player) => {
+mp.events.add('playerQuit', (player, exitType) => {
     onlinePlayers.delete(player.id);
     const users = loadUsers();
     if (users[player.socialClub]) {
         users[player.socialClub].lastSeen = new Date().toISOString();
         saveUsers(users);
+    }
+    logConsole('QUIT', `${player.name} (${player.socialClub}) left the server. (${exitType})`);
+});
+
+// Console command sent from UCP
+mp.events.add('webpanel:consoleCommand', (cmd) => {
+    // Broadcast as an admin command chat message if it starts with a known command.
+    logConsole('UCP_CMD', `Executing UCP command: ${cmd}`);
+    // Simple command dispatcher – extend as needed.
+    const parts = cmd.trim().split(/\s+/);
+    const name  = parts[0].toLowerCase().replace(/^\//, '');
+    if (name === 'say' && parts.length > 1) {
+        const msg = parts.slice(1).join(' ');
+        mp.players.broadcast(`!{#ff6600}[SERVER] !{#ffffff}${msg}`);
+        logConsole('SAY', `[SERVER] ${msg}`);
+    } else if (name === 'kick' && parts.length >= 2) {
+        const target = mp.players.at(parseInt(parts[1], 10));
+        if (target) {
+            const reason = parts.slice(2).join(' ') || 'Kicked via UCP console.';
+            target.kick(reason);
+            logConsole('KICK', `Kicked ${target.name}: ${reason}`);
+        }
+    } else {
+        logConsole('UCP_CMD', `Unknown UCP command: ${cmd}`);
     }
 });

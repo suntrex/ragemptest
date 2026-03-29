@@ -6,11 +6,13 @@
 
 let browser = null;
 let menuOpen = false;
+let loginVisible = false;
 
 const MENU_URL = 'package://admin/html/index.html';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function openMenu() {
+    if (loginVisible) return; // don't toggle menu while login is showing
     if (menuOpen) {
         closeMenu();
         return;
@@ -24,16 +26,47 @@ function openMenu() {
 function closeMenu() {
     if (!menuOpen) return;
     menuOpen = false;
-    if (browser) {
+    if (browser && !loginVisible) {
         browser.destroy();
         browser = null;
     }
-    mp.gui.cursor.show(false, false);
+    if (!loginVisible) mp.gui.cursor.show(false, false);
 }
 
 // ─── Key Binding (F6 = toggle menu) ──────────────────────────────────────────
 mp.keys.bind(0x75, true, () => {  // 0x75 = F6
     openMenu();
+});
+
+// ─── Login Overlay (shown on player join) ─────────────────────────────────────
+
+/** Server signals that the player must authenticate. */
+mp.events.add('auth:showLogin', () => {
+    loginVisible = true;
+    if (!browser) {
+        browser = mp.browsers.new(MENU_URL);
+    }
+    mp.gui.cursor.show(true, true);
+    browser.active = true;
+    // Give the browser a moment to load before executing JS.
+    setTimeout(() => {
+        if (browser) browser.execute('showLoginOverlay()');
+    }, 500);
+});
+
+/** Server responds with login result. */
+mp.events.add('auth:loginResult', (success, reason) => {
+    if (success) {
+        loginVisible = false;
+        if (browser) browser.execute('hideLoginOverlay()');
+        mp.gui.cursor.show(false, false);
+        // Close the browser unless the admin menu was intentionally opened.
+        if (!menuOpen) {
+            if (browser) { browser.destroy(); browser = null; }
+        }
+    } else {
+        if (browser) browser.execute(`showLoginError(${JSON.stringify(reason)})`);
+    }
 });
 
 // ─── Server → Client Events ───────────────────────────────────────────────────
@@ -53,6 +86,11 @@ mp.events.add('admin:receivePlayerList', (listJson) => {
 // ─── CEF → Client → Server Bridge ────────────────────────────────────────────
 mp.events.add('admin:cef:closeMenu', () => {
     closeMenu();
+});
+
+// Login form submission from CEF
+mp.events.add('auth:cef:login', (username, password) => {
+    mp.events.callRemote('auth:login', username, password);
 });
 
 mp.events.add('admin:cef:teleportToWaypoint', () => {
