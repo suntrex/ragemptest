@@ -233,6 +233,24 @@
         .news-date { flex-shrink: 0; font-size: 11px; color: var(--text-muted); padding-top: 3px; white-space: nowrap; }
         .news-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
         .news-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+        /* ── Admin views shared ──────────────────────────────────────────────── */
+        .admin-search-bar { display:flex; gap:8px; align-items:center; }
+        .admin-search-bar input { flex:1; min-width:0; padding:7px 12px; background:var(--bg-dark); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13px; outline:none; }
+        .admin-search-bar input:focus { border-color:var(--accent); }
+
+        /* ── Server Controls ─────────────────────────────────────────────────── */
+        .ctrl-action-row {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:16px; background:var(--bg-dark); border-radius:var(--radius);
+            border:1px solid var(--border); margin-bottom:12px;
+        }
+        .ctrl-action-row:last-child { margin-bottom:0; }
+        .ctrl-action-info .ctrl-action-title { font-weight:700; margin-bottom:4px; }
+        .ctrl-action-info .ctrl-action-desc  { font-size:12px; color:var(--text-muted); }
+        .broadcast-row { display:flex; gap:8px; }
+        .broadcast-row input { flex:1; padding:9px 14px; background:var(--bg-dark); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13px; outline:none; }
+        .broadcast-row input:focus { border-color:var(--accent); }
     </style>
 </head>
 <body>
@@ -324,8 +342,25 @@
         <div class="sidebar-nav-item" data-view="status" onclick="ucpSwitchView('status')">
             <span class="nav-icon">&#128225;</span> Server Status
         </div>
-        <div class="sidebar-nav-item" id="console-nav" data-view="console" onclick="ucpSwitchView('console')" style="display:none;">
-            <span class="nav-icon">&#128421;</span> In-Game Console
+        <!-- Administration – visible when adminLevel >= 1 -->
+        <div id="admin-nav-section" style="display:none;">
+            <div class="sidebar-section-label">Administration</div>
+            <div class="sidebar-nav-item" data-view="users" onclick="ucpSwitchView('users')">
+                <span class="nav-icon">&#128101;</span> User Management
+            </div>
+            <div class="sidebar-nav-item" data-view="players" onclick="ucpSwitchView('players')">
+                <span class="nav-icon">&#127918;</span> Active Players
+            </div>
+            <div class="sidebar-nav-item" data-view="adminconsole" onclick="ucpSwitchView('adminconsole')">
+                <span class="nav-icon">&#128421;</span> Console
+            </div>
+        </div>
+        <!-- Server Controls – visible when adminLevel >= 3 -->
+        <div id="server-ctrl-nav-section" style="display:none;">
+            <div class="sidebar-section-label">Server Controls</div>
+            <div class="sidebar-nav-item" data-view="servercontrols" onclick="ucpSwitchView('servercontrols')">
+                <span class="nav-icon">&#9881;&#65039;</span> Server Controls
+            </div>
         </div>
     </aside>
 
@@ -457,7 +492,7 @@
             </div>
 
             <!-- Console view (admins only) -->
-            <div class="ucp-view" id="ucp-view-console">
+            <div class="ucp-view" id="ucp-view-adminconsole">
                 <div class="section-card">
                     <div class="section-card-header">
                         <span class="section-card-title">&#128421; In-Game Console</span>
@@ -471,6 +506,116 @@
                             <button onclick="sendConsoleCommand()">Send</button>
                         </div>
                         <div class="console-hint">Commands: <code>say &lt;message&gt;</code> &middot; <code>kick &lt;id&gt; [reason]</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management view (admin only) -->
+            <div class="ucp-view" id="ucp-view-users">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#128101; User Management</span>
+                        <div class="admin-search-bar">
+                            <input type="search" id="users-search" placeholder="Search by name or Social Club&#8230;" oninput="ucpFilterUsers()" />
+                            <button class="btn btn-ghost btn-sm" onclick="ucpLoadUsers()">&#128260; Refresh</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Admin Level</th>
+                                    <th>Status</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Players view (admin only) -->
+            <div class="ucp-view" id="ucp-view-players">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#127918; Active Players</span>
+                        <button class="btn btn-ghost btn-sm" onclick="ucpLoadPlayers()">&#128260; Refresh</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Social Club</th>
+                                    <th>Admin</th>
+                                    <th>Ping</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="players-tbody">
+                                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Controls view (super admin only) -->
+            <div class="ucp-view" id="ucp-view-servercontrols">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon green">&#128994;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-online">&#8211;</div>
+                            <div class="stat-label">Online Players</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue">&#128101;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-registered">&#8211;</div>
+                            <div class="stat-label">Registered Users</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon accent">&#127918;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-gameusers">&#8211;</div>
+                            <div class="stat-label">Linked Game Accounts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#128226; Broadcast Message</span>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="broadcast-row">
+                            <input type="text" id="broadcast-msg" placeholder="Message to broadcast to all online players&#8230;" />
+                            <button class="btn btn-primary" onclick="serverBroadcast()">&#128226; Broadcast</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#9881;&#65039; Server Actions</span>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="ctrl-action-row">
+                            <div class="ctrl-action-info">
+                                <div class="ctrl-action-title">&#128260; Restart Server</div>
+                                <div class="ctrl-action-desc">Gracefully stops the server process. Requires a restart loop (pm2, batch script, or similar) to bring it back online automatically.</div>
+                            </div>
+                            <button class="btn btn-danger" onclick="serverRestart()">Restart</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -495,6 +640,7 @@ const PERM_LABELS = {
 
 let consolePollTimer = null;
 let lastConsoleSince = null;
+let allUsers = [];
 
 function toast(msg, type = 'info') {
     const el = document.createElement('div');
@@ -529,13 +675,17 @@ function ucpSwitchView(name) {
     const view = document.getElementById('ucp-view-' + name);
     if (view) view.classList.add('active');
     document.querySelectorAll('.sidebar-nav-item[data-view="' + name + '"]').forEach(el => el.classList.add('active'));
-    if (name === 'console') {
-        clearInterval(consolePollTimer);
+    clearInterval(consolePollTimer);
+    if (name === 'adminconsole') {
         lastConsoleSince = null;
         fetchConsoleLogs();
         consolePollTimer = setInterval(fetchConsoleLogs, 3000);
-    } else {
-        clearInterval(consolePollTimer);
+    } else if (name === 'users') {
+        ucpLoadUsers();
+    } else if (name === 'players') {
+        ucpLoadPlayers();
+    } else if (name === 'servercontrols') {
+        loadServerControlStats();
     }
     if (name === 'status') refreshStatus();
 }
@@ -544,6 +694,8 @@ function showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('dashboard-screen').classList.remove('visible');
     clearInterval(consolePollTimer);
+    document.getElementById('admin-nav-section').style.display = 'none';
+    document.getElementById('server-ctrl-nav-section').style.display = 'none';
 }
 function showDashboard() {
     document.getElementById('login-screen').style.display = 'none';
@@ -652,7 +804,12 @@ async function loadDashboard() {
         ? '<span class="perm-none">No special permissions.</span>'
         : activePerms.map(([k]) => '<span class="perm-tag">' + (PERM_LABELS[k] || k) + '</span>').join('');
 
-    if (me.adminLevel > 0) document.getElementById('console-nav').style.display = '';
+    if (me.adminLevel >= 1) {
+        document.getElementById('admin-nav-section').style.display = '';
+    }
+    if (me.adminLevel >= 3) {
+        document.getElementById('server-ctrl-nav-section').style.display = '';
+    }
 }
 
 async function changePassword() {
@@ -696,7 +853,7 @@ async function refreshStatus() {
 
 async function fetchConsoleLogs() {
     try {
-        const url  = lastConsoleSince ? '/api/console?since=' + encodeURIComponent(lastConsoleSince) : '/api/console';
+        const url  = lastConsoleSince ? '/api/ucp-console?since=' + encodeURIComponent(lastConsoleSince) : '/api/ucp-console';
         const logs = await api('GET', url);
         if (!logs) return;
         const container  = document.getElementById('console-log');
@@ -727,10 +884,157 @@ async function sendConsoleCommand() {
     const cmd   = input.value.trim();
     if (!cmd) return;
     try {
-        await api('POST', '/api/console/send', { command: cmd });
+        await api('POST', '/api/ucp-console/send', { command: cmd });
         input.value = '';
         toast('Command sent.', 'success');
         setTimeout(fetchConsoleLogs, 400);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── User Management ───────────────────────────────────────────────────────────
+
+async function ucpLoadUsers() {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>';
+    try {
+        allUsers = await api('GET', '/api/ucp-users') || [];
+        ucpFilterUsers();
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--red);">' + escHtml(e.message) + '</td></tr>';
+    }
+}
+
+function ucpFilterUsers() {
+    const q = (document.getElementById('users-search').value || '').toLowerCase();
+    const filtered = allUsers.filter(u =>
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.socialClub || '').toLowerCase().includes(q)
+    );
+    const tbody = document.getElementById('users-tbody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-icon">&#128101;</div><p>No users found.</p></td></tr>';
+        return;
+    }
+    const levelClasses = ['none', 'mod', 'admin', 'superadmin'];
+    tbody.innerHTML = filtered.map(u => {
+        const lvlClass = levelClasses[u.adminLevel] || 'none';
+        const lvlName  = ADMIN_LEVEL_NAMES[u.adminLevel] || 'None';
+        const sc       = u.socialClub || '';
+        // Use JSON.stringify for onclick to safely encode the Social Club as a JS string literal,
+        // preventing XSS if the value contains quotes or backslashes.
+        const scJs     = JSON.stringify(sc);
+        const actions  = sc
+            ? (u.banned
+                ? `<button class="btn btn-success btn-xs" onclick="ucpUnbanUser(${scJs})">Unban</button>`
+                : `<button class="btn btn-danger btn-xs" onclick="ucpBanUser(${scJs})">Ban</button>`)
+            : '<span style="color:var(--text-muted);">&#8212;</span>';
+        return `<tr>
+            <td>
+                <div style="font-weight:700;">${escHtml(u.name || u.socialClub || '\u2014')}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${escHtml(sc || 'No Social Club')}</div>
+            </td>
+            <td><span class="badge badge-${lvlClass}">${lvlName}</span></td>
+            <td>${u.banned ? '<span class="badge badge-banned">Banned</span>' : '<span class="badge badge-online">Active</span>'}</td>
+            <td style="color:var(--text-muted);font-size:12px;">${formatDate(u.lastSeen)}</td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function ucpBanUser(socialClub) {
+    const reason = window.prompt('Ban reason (leave blank for default):');
+    if (reason === null) return;
+    try {
+        await api('POST', '/api/ucp-users/' + encodeURIComponent(socialClub) + '/ban', { reason });
+        toast('User banned.', 'success');
+        await ucpLoadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function ucpUnbanUser(socialClub) {
+    try {
+        await api('POST', '/api/ucp-users/' + encodeURIComponent(socialClub) + '/unban', {});
+        toast('User unbanned.', 'success');
+        await ucpLoadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Active Players ────────────────────────────────────────────────────────────
+
+async function ucpLoadPlayers() {
+    const tbody = document.getElementById('players-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>';
+    try {
+        const players = await api('GET', '/api/ucp-connections') || [];
+        if (players.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">No players currently online.</td></tr>';
+            return;
+        }
+        const levelClasses = ['none', 'mod', 'admin', 'superadmin'];
+        tbody.innerHTML = players.map(p => {
+            const lvlClass = levelClasses[p.adminLevel] || 'none';
+            return `<tr>
+                <td>${p.id}</td>
+                <td style="font-weight:700;">${escHtml(p.name)}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${escHtml(p.socialClub)}</td>
+                <td><span class="badge badge-${lvlClass}">${ADMIN_LEVEL_NAMES[p.adminLevel] || 'None'}</span></td>
+                <td>${p.ping}ms</td>
+                <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="btn btn-success btn-xs" onclick="ucpPlayerAction(${p.id},'heal')">Heal</button>
+                    <button class="btn btn-warning btn-xs" onclick="ucpPlayerAction(${p.id},'freeze',true)">Freeze</button>
+                    <button class="btn btn-danger btn-xs" onclick="ucpKickPlayer(${p.id})">Kick</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red);">' + escHtml(e.message) + '</td></tr>';
+    }
+}
+
+async function ucpPlayerAction(id, type, value) {
+    try {
+        await api('POST', '/api/ucp-connections/' + id + '/action', { type, value });
+        toast('Action applied.', 'success');
+        await ucpLoadPlayers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function ucpKickPlayer(id) {
+    const reason = window.prompt('Kick reason (leave blank for default):');
+    if (reason === null) return;
+    try {
+        await api('POST', '/api/ucp-connections/' + id + '/action', { type: 'kick', reason: reason || 'Kicked by admin.' });
+        toast('Player kicked.', 'success');
+        setTimeout(ucpLoadPlayers, 500);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Server Controls ───────────────────────────────────────────────────────────
+
+async function loadServerControlStats() {
+    try {
+        const s = await fetch('/api/ucp-stats').then(r => r.json());
+        document.getElementById('sc-online').textContent     = s.onlinePlayers;
+        document.getElementById('sc-registered').textContent = s.registeredUsers.toLocaleString();
+        document.getElementById('sc-gameusers').textContent  = s.gameUsers.toLocaleString();
+    } catch { /* ignore */ }
+}
+
+async function serverBroadcast() {
+    const msg = document.getElementById('broadcast-msg').value.trim();
+    if (!msg) { toast('Please enter a message.', 'error'); return; }
+    try {
+        await api('POST', '/api/server-broadcast', { message: msg });
+        document.getElementById('broadcast-msg').value = '';
+        toast('Message broadcasted to all players!', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function serverRestart() {
+    if (!window.confirm('Are you sure you want to restart the server?\nAll players will be disconnected.')) return;
+    try {
+        await api('POST', '/api/server-restart', {});
+        toast('Server is restarting\u2026', 'info');
     } catch (e) { toast(e.message, 'error'); }
 }
 

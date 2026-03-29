@@ -126,6 +126,32 @@ function getUcpSession(token) {
 
 function deleteUcpSession(token) { ucpSessions.delete(token); }
 
+/** Get the in-game admin level for a logged-in UCP session user. */
+function getUcpAdminLevel(session) {
+    if (!session || !session.username) return 0;
+    const accounts = loadAccounts();
+    const account  = accounts[session.username];
+    if (!account || !account.socialClub) return 0;
+    const users = loadUsers();
+    const user  = users[account.socialClub];
+    return user ? (user.adminLevel || 0) : 0;
+}
+
+/**
+ * Requires a valid UCP session with at least `minLevel` admin level.
+ * Returns the session on success, or sends 401/403 and returns null.
+ */
+function requireUcpAdminAuth(req, res, minLevel = 1) {
+    const session = requireUcpAuth(req, res);
+    if (!session) return null;
+    const level = getUcpAdminLevel(session);
+    if (level < minLevel) {
+        jsonErr(res, 403, 'Insufficient permissions.');
+        return null;
+    }
+    return session;
+}
+
 /** Verifies UCP player session; returns session or null (with 401/redirect). */
 function requireUcpAuth(req, res) {
     const cookies = parseCookies(req);
@@ -777,6 +803,137 @@ const server = http.createServer(async (req, res) => {
             adminLevel:  userData ? (userData.adminLevel  || 0) : 0,
             permissions: userData ? (userData.permissions || {}) : {},
         });
+    }
+
+    // ── UCP Admin API (authenticated via UCP session + admin level) ───────────
+
+    // GET /api/ucp-users – list all users (UCP admin >= 1)
+    if (pathname === '/api/ucp-users' && method === 'GET') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const users    = loadUsers();
+        const accounts = loadAccounts();
+        const result   = Object.values(users);
+        const linkedSocialClubs = new Set(Object.keys(users));
+        Object.values(accounts).forEach(acc => {
+            if (acc.socialClub && linkedSocialClubs.has(acc.socialClub)) return;
+            result.push({
+                socialClub:  acc.socialClub || null,
+                name:        acc.username,
+                adminLevel:  0,
+                permissions: defaultPermissions(),
+                notes:       '',
+                banned:      false,
+                banReason:   '',
+                firstSeen:   acc.createdAt,
+                lastSeen:    acc.lastLogin || acc.createdAt,
+                ucpUsername: acc.username,
+                ucpOnly:     !acc.socialClub,
+            });
+        });
+        return jsonOk(res, result);
+    }
+
+    // PUT /api/ucp-users/:socialClub – edit user record (UCP admin >= 1)
+    const ucpUserEdit = pathname.match(/^\/api\/ucp-users\/([^/]+)$/);
+    if (ucpUserEdit && method === 'PUT') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const socialClub = decodeURIComponent(ucpUserEdit[1]);
+        const body = await parseBody(req);
+        if (!body) return jsonErr(res, 400, 'Invalid JSON.');
+        const users = loadUsers();
+        if (!users[socialClub]) return jsonErr(res, 404, 'User not found.');
+        const allowed = ['adminLevel', 'permissions', 'notes', 'banned', 'banReason'];
+        allowed.forEach(k => { if (k in body) users[socialClub][k] = body[k]; });
+        saveUsers(users);
+        applyToLivePlayer(socialClub, users[socialClub]);
+        return jsonOk(res, users[socialClub]);
+    }
+
+    // POST /api/ucp-users/:socialClub/ban (UCP admin >= 2)
+    const ucpBanRoute = pathname.match(/^\/api\/ucp-users\/([^/]+)\/ban$/);
+    if (ucpBanRoute && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const socialClub = decodeURIComponent(ucpBanRoute[1]);
+        const body = await parseBody(req) || {};
+        const users = loadUsers();
+        if (!users[socialClub]) return jsonErr(res, 404, 'User not found.');
+        users[socialClub].banned    = true;
+        users[socialClub].banReason = body.reason || 'Banned by admin.';
+        saveUsers(users);
+        kickLivePlayer(socialClub, users[socialClub].banReason);
+        return jsonOk(res, users[socialClub]);
+    }
+
+    // POST /api/ucp-users/:socialClub/unban (UCP admin >= 2)
+    const ucpUnbanRoute = pathname.match(/^\/api\/ucp-users\/([^/]+)\/unban$/);
+    if (ucpUnbanRoute && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 2)) return;
+        const socialClub = decodeURIComponent(ucpUnbanRoute[1]);
+        const users = loadUsers();
+        if (!users[socialClub]) return jsonErr(res, 404, 'User not found.');
+        users[socialClub].banned    = false;
+        users[socialClub].banReason = '';
+        saveUsers(users);
+        return jsonOk(res, users[socialClub]);
+    }
+
+    // GET /api/ucp-connections – online players (UCP admin >= 1)
+    if (pathname === '/api/ucp-connections' && method === 'GET') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        return jsonOk(res, getActiveConnections());
+    }
+
+    // POST /api/ucp-connections/:id/action – live player action (UCP admin >= 1)
+    const ucpConnAction = pathname.match(/^\/api\/ucp-connections\/(\d+)\/action$/);
+    if (ucpConnAction && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const pid  = parseInt(ucpConnAction[1], 10);
+        const body = await parseBody(req);
+        if (!body) return jsonErr(res, 400, 'Invalid JSON.');
+        return jsonOk(res, performLiveAction(pid, body));
+    }
+
+    // GET /api/ucp-console – console log entries (UCP admin >= 1)
+    if (pathname === '/api/ucp-console' && method === 'GET') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const since = parsed.searchParams.get('since');
+        const logs = since
+            ? consoleLogs.filter(e => e.timestamp > since)
+            : consoleLogs.slice(-100);
+        return jsonOk(res, logs);
+    }
+
+    // POST /api/ucp-console/send – execute a server command (UCP admin >= 1)
+    if (pathname === '/api/ucp-console/send' && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const body = await parseBody(req);
+        if (!body || typeof body.command !== 'string') return jsonErr(res, 400, 'command required.');
+        const cmd = body.command.trim();
+        if (!cmd) return jsonErr(res, 400, 'command cannot be empty.');
+        logConsole('UCP_CMD', `[Panel] ${cmd}`);
+        mp.events.call('webpanel:consoleCommand', cmd);
+        return jsonOk(res, { ok: true });
+    }
+
+    // POST /api/server-broadcast – broadcast to all players (UCP admin >= 1)
+    if (pathname === '/api/server-broadcast' && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 1)) return;
+        const body = await parseBody(req);
+        if (!body || typeof body.message !== 'string') return jsonErr(res, 400, 'message required.');
+        const msg = body.message.trim();
+        if (!msg) return jsonErr(res, 400, 'message cannot be empty.');
+        mp.players.broadcast(`!{#ff6600}[SERVER] !{#ffffff}${msg}`);
+        logConsole('SAY', `[SERVER] ${msg}`);
+        return jsonOk(res, { ok: true });
+    }
+
+    // POST /api/server-restart – graceful server restart (UCP admin >= 3)
+    if (pathname === '/api/server-restart' && method === 'POST') {
+        if (!requireUcpAdminAuth(req, res, 3)) return;
+        logConsole('RESTART', 'Server restart initiated via control panel.');
+        jsonOk(res, { ok: true, message: 'Server is restarting\u2026' });
+        setTimeout(() => process.exit(0), 1000);
+        return;
     }
 
     // Fallback 404
