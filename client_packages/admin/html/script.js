@@ -235,5 +235,55 @@ function escapeHtml(str) {
 
 /* ── Keyboard: Escape to close ───────────────────────────────────────────── */
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeMenu();
+    if (e.key === 'Escape' && !document.getElementById('login-overlay').classList.contains('visible')) {
+        closeMenu();
+    }
+    // Allow Enter to submit the login form
+    if (e.key === 'Enter' && document.getElementById('login-overlay').classList.contains('visible')) {
+        submitLogin();
+    }
 });
+
+/* ── Login Overlay Functions ─────────────────────────────────────────────── */
+function showLoginOverlay() {
+    const overlay = document.getElementById('login-overlay');
+    overlay.classList.add('visible');
+    // Clear previous values and errors
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    hideLoginError();
+    setTimeout(() => document.getElementById('login-username').focus(), 100);
+}
+
+function hideLoginOverlay() {
+    document.getElementById('login-overlay').classList.remove('visible');
+}
+
+function showLoginError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+
+function hideLoginError() {
+    document.getElementById('login-error').classList.add('hidden');
+}
+
+function submitLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!username || !password) {
+        showLoginError('Please enter your username and password.');
+        return;
+    }
+    hideLoginError();
+    const btn = document.getElementById('login-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    trigger('auth:cef:login', username, password);
+    // Re-enable after timeout in case no response comes
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+    }, 5000);
+}

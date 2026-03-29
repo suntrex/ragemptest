@@ -4,14 +4,17 @@
    Extract magic numbers here for easy adjustment.                            */
 const TOAST_DURATION_MS      = 3200;  // How long toasts stay visible (ms)
 const AUTO_REFRESH_INTERVAL  = 5000;  // Connections auto-refresh interval (ms)
+const CONSOLE_REFRESH_MS     = 3000;  // Console poll interval (ms)
 
 /* ── Globals ─────────────────────────────────────────────────────────────────
    allUsers  : array of user objects from /api/users
    allConns  : array of connection objects from /api/connections           */
-let allUsers    = [];
-let allConns    = [];
-let connTimer   = null;
-let currentView = 'dashboard';
+let allUsers         = [];
+let allConns         = [];
+let connTimer        = null;
+let consoleTimer     = null;
+let lastConsoleSince = null;
+let currentView      = 'dashboard';
 
 // ── Toast Notifications ───────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
@@ -52,6 +55,7 @@ function switchView(name) {
         connections:  'Active Connections',
         users:        'User Management',
         'panel-admins': 'Panel Admins',
+        console:      'In-Game Console',
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
 
@@ -65,6 +69,15 @@ function switchView(name) {
         connTimer = setInterval(loadConnections, AUTO_REFRESH_INTERVAL);
     } else {
         clearInterval(connTimer);
+    }
+
+    if (name === 'console') {
+        clearInterval(consoleTimer);
+        lastConsoleSince = null;
+        loadConsoleLogs();
+        consoleTimer = setInterval(loadConsoleLogs, CONSOLE_REFRESH_MS);
+    } else {
+        clearInterval(consoleTimer);
     }
 
     if (name === 'users')         loadUsers();
@@ -585,6 +598,71 @@ function openModal({ title, body, confirmLabel = 'Confirm', confirmClass = 'btn-
     // Focus first input
     const firstInput = backdrop.querySelector('input, select, textarea');
     if (firstInput) setTimeout(() => firstInput.focus(), 50);
+}
+
+// ── In-Game Console ───────────────────────────────────────────────────────────
+const LOG_TYPE_COLORS = {
+    JOIN: '#27ae60', QUIT: '#c0392b', AUTH: '#2980b9',
+    KICK: '#f39c12', SAY: '#e8a020', REGISTER: '#5dade2',
+    UCP_CMD: '#a569bd',
+};
+
+function renderLogEntry(entry) {
+    const ts    = new Date(entry.timestamp).toLocaleTimeString();
+    const type  = entry.type || '?';
+    const color = LOG_TYPE_COLORS[type] || '#7a8199';
+    return `<div style="display:flex; gap:8px; font-family:'Cascadia Code','Consolas',monospace; font-size:12px; line-height:1.7;">
+        <span style="color:#4a5568; flex-shrink:0;">[${ts}]</span>
+        <span style="font-weight:700; min-width:70px; flex-shrink:0; color:${color};">${escHtml(type)}</span>
+        <span style="color:var(--text); word-break:break-all;">${escHtml(entry.message)}</span>
+    </div>`;
+}
+
+async function loadConsoleLogs() {
+    try {
+        const url = lastConsoleSince
+            ? `/api/console?since=${encodeURIComponent(lastConsoleSince)}`
+            : '/api/console';
+        const logs = await api('GET', url);
+        if (!logs) return;
+
+        const container = document.getElementById('console-log');
+        if (!container) return;
+        const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 20;
+
+        if (logs.length > 0) {
+            if (!lastConsoleSince) {
+                container.innerHTML = logs.map(renderLogEntry).join('');
+            } else {
+                logs.forEach(entry => container.insertAdjacentHTML('beforeend', renderLogEntry(entry)));
+            }
+            lastConsoleSince = logs[logs.length - 1].timestamp;
+        } else if (!lastConsoleSince) {
+            container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">No console entries yet.</div>';
+        }
+
+        if (isAtBottom) container.scrollTop = container.scrollHeight;
+    } catch { /* ignore polling errors */ }
+}
+
+async function sendConsoleCmd() {
+    const input = document.getElementById('console-cmd-input');
+    const cmd   = (input && input.value.trim()) || '';
+    if (!cmd) return;
+    try {
+        await api('POST', '/api/console/send', { command: cmd });
+        if (input) input.value = '';
+        toast('Command sent.', 'success');
+        setTimeout(loadConsoleLogs, 300);
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+function clearConsoleView() {
+    const container = document.getElementById('console-log');
+    if (container) container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Console cleared (display only).</div>';
+    lastConsoleSince = null;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

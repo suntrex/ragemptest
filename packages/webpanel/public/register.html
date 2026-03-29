@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register – Player UCP</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+        .wrapper {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo .logo-icon { font-size: 48px; line-height: 1; display: block; }
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-top: 12px;
+            letter-spacing: 1px;
+        }
+        .logo p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 32px 28px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(232,160,32,0.15);
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: #000;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 8px;
+        }
+        .btn-submit:hover  { background: var(--accent2); }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .alert {
+            border-radius: var(--radius);
+            font-size: 13px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .alert.visible { display: block; }
+        .alert.error   { background: rgba(192,57,43,0.15); border: 1px solid var(--red); color: #e74c3c; }
+        .alert.success { background: rgba(39,174,96,0.15); border: 1px solid var(--green); color: var(--green); }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .footer a { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="logo">
+            <span class="logo-icon">🎮</span>
+            <h1>PLAYER UCP</h1>
+            <p>Create your player account</p>
+        </div>
+
+        <div class="card">
+            <div id="alert" class="alert" role="alert"></div>
+
+            <form id="reg-form" novalidate>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username"
+                        placeholder="Choose a username" required />
+                    <div class="hint">3–20 characters: letters, numbers, underscore</div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="new-password"
+                        placeholder="Choose a password (min. 6 chars)" required />
+                </div>
+                <div class="form-group">
+                    <label for="password2">Confirm Password</label>
+                    <input type="password" id="password2" name="password2" autocomplete="new-password"
+                        placeholder="Repeat your password" required />
+                </div>
+                <button type="submit" class="btn-submit" id="submit-btn">Create Account</button>
+            </form>
+        </div>
+
+        <div class="footer">
+            Already have an account? <a href="/ucp">Sign in to UCP</a>
+            &nbsp;|&nbsp; <a href="/">Admin Login</a>
+        </div>
+    </div>
+
+    <script>
+        const form      = document.getElementById('reg-form');
+        const alertEl   = document.getElementById('alert');
+        const submitBtn = document.getElementById('submit-btn');
+
+        function showAlert(msg, type) {
+            alertEl.textContent = msg;
+            alertEl.className   = `alert visible ${type}`;
+        }
+        function hideAlert() { alertEl.classList.remove('visible'); }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const username  = document.getElementById('username').value.trim();
+            const password  = document.getElementById('password').value;
+            const password2 = document.getElementById('password2').value;
+
+            if (!username || !password || !password2) {
+                return showAlert('Please fill in all fields.', 'error');
+            }
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                return showAlert('Username must be 3–20 characters (letters, numbers, underscore).', 'error');
+            }
+            if (password.length < 6) {
+                return showAlert('Password must be at least 6 characters.', 'error');
+            }
+            if (password !== password2) {
+                return showAlert('Passwords do not match.', 'error');
+            }
+
+            submitBtn.disabled    = true;
+            submitBtn.textContent = 'Creating account…';
+
+            try {
+                const res  = await fetch('/api/ucp-register', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ username: username.toLowerCase(), password }),
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    showAlert('Account created successfully! You can now log in in-game using /login <username> <password>', 'success');
+                    form.reset();
+                } else {
+                    showAlert(data.error || 'Registration failed. Please try again.', 'error');
+                }
+            } catch {
+                showAlert('Could not reach the server. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled    = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        });
+    </script>
+</body>
+</html>

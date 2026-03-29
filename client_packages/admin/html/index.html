@@ -225,6 +225,28 @@
     <div id="notification" class="hidden"></div>
 </div>
 
+<!-- ── Login Overlay (shown on player join) ──────────────────────────────── -->
+<div id="login-overlay">
+    <div id="login-box">
+        <div id="login-logo">🔐</div>
+        <h2 id="login-title">Login Required</h2>
+        <p id="login-subtitle">Enter your UCP credentials to play on this server.</p>
+        <div id="login-error" class="login-error hidden"></div>
+        <div class="login-form-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" placeholder="Your UCP username" autocomplete="username" />
+        </div>
+        <div class="login-form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+        </div>
+        <button id="login-submit-btn" onclick="submitLogin()">Sign In</button>
+        <div id="login-footer">
+            No account? Register at <strong>http://&lt;server-ip&gt;:8080/register</strong>
+        </div>
+    </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>
