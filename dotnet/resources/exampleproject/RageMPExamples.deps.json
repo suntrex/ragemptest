@@ -6,15 +6,15 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v3.1": {
-      "GTAWExamples/1.0.0": {
+      "RageMPExamples/1.0.0": {
         "runtime": {
-          "GTAWExamples.dll": {}
+          "RageMPExamples.dll": {}
         }
       }
     }
   },
   "libraries": {
-    "GTAWExamples/1.0.0": {
+    "RageMPExamples/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

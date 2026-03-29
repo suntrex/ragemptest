@@ -398,36 +398,6 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
     const parts = cmdRaw.trim().split(/\s+/);
     const cmd = parts[0].toLowerCase();
 
-    if (cmd === 'login') {
-        const username = parts[1];
-        const password = parts[2];
-        if (!username || !password) {
-            return player.outputChatBox('!{#ff0000}[AUTH] !{#ffffff}Usage: /login <username> <password>');
-        }
-        // Delegate to the same handler the CEF login form uses
-        const attempts = (loginAttempts.get(player.id) || 0);
-        if (attempts >= MAX_LOGIN_ATTEMPTS) {
-            player.kick('Too many failed login attempts.');
-            return;
-        }
-        const result = verifyIngameLogin(username, password, player.socialClub);
-        if (result.ok) {
-            authenticatedPlayers.add(player.id);
-            loginAttempts.delete(player.id);
-            player.setVariable('adminLevel',  result.adminLevel);
-            player.setVariable('permissions', JSON.stringify(result.permissions));
-            player.call('auth:loginResult', [true, '']);
-            notifyAdmin(player, `Logged in successfully! Admin level: ${result.adminLevel}.`);
-            mp.events.call('console:log', 'AUTH', `${player.name} logged in via /login as ${username}.`);
-        } else {
-            loginAttempts.set(player.id, attempts + 1);
-            const remaining = MAX_LOGIN_ATTEMPTS - (attempts + 1);
-            player.outputChatBox(`!{#ff0000}[AUTH] !{#ffffff}${result.reason}${remaining > 0 ? ` (${remaining} attempts left)` : ''}`);
-            if (remaining <= 0) setTimeout(() => player.kick('Too many failed login attempts.'), 1500);
-        }
-        return;
-    }
-
     if (cmd === 'admin') {
         if (!isAdmin(player)) return notifyError(player, 'You do not have admin access.');
         player.call('admin:openMenu');
@@ -473,13 +443,15 @@ mp.events.add('playerCommand', (player, cmdRaw) => {
 
     // Unknown command – notify the player so RAGE:MP does not show a generic
     // "Unknown command" message from the client.
-    const hint = isAuthenticated(player) ? '' : ' Type /login to authenticate.';
+    const hint = isAuthenticated(player) ? '' : ' Please use the login screen that appeared on join.';
     player.outputChatBox(`!{#888888}Unknown command: /${cmd}.${hint}`);
 });
 
 mp.events.add('playerReady', (player) => {
     // Show login overlay via CEF as soon as the player is ready.
-    player.call('auth:showLogin');
+    // Pass current player count so the overlay can display it.
+    const onlineCount = mp.players.length;
+    player.call('auth:showLogin', [onlineCount]);
     player.outputChatBox('!{#00ff88}Welcome! Please use the login screen to authenticate.');
     player.outputChatBox('!{#aaaaaa}No account yet? Register at the UCP: http://<server-ip>:8080/ucp');
 });

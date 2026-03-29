@@ -3,6 +3,6 @@
   <info name="Example Project" author="808masterus" type="gamemode"/>
   
   <!-- Gamemode library -->
-  <script src="GTAWExamples.dll" />
+  <script src="RageMPExamples.dll" />
   
 </meta>
