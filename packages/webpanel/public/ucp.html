@@ -233,6 +233,75 @@
         .news-date { flex-shrink: 0; font-size: 11px; color: var(--text-muted); padding-top: 3px; white-space: nowrap; }
         .news-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
         .news-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+        /* ── Admin views shared ──────────────────────────────────────────────── */
+        .admin-search-bar { display:flex; gap:8px; align-items:center; }
+        .admin-search-bar input { flex:1; min-width:0; padding:7px 12px; background:var(--bg-dark); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13px; outline:none; }
+        .admin-search-bar input:focus { border-color:var(--accent); }
+
+        /* ── Server Controls ─────────────────────────────────────────────────── */
+        .ctrl-action-row {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:16px; background:var(--bg-dark); border-radius:var(--radius);
+            border:1px solid var(--border); margin-bottom:12px;
+        }
+        .ctrl-action-row:last-child { margin-bottom:0; }
+        .ctrl-action-info .ctrl-action-title { font-weight:700; margin-bottom:4px; }
+        .ctrl-action-info .ctrl-action-desc  { font-size:12px; color:var(--text-muted); }
+        .broadcast-row { display:flex; gap:8px; }
+        .broadcast-row input { flex:1; padding:9px 14px; background:var(--bg-dark); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13px; outline:none; }
+        .broadcast-row input:focus { border-color:var(--accent); }
+
+        /* ── Rank Management ─────────────────────────────────────────────────── */
+        .rank-color-dot {
+            display:inline-block; width:12px; height:12px;
+            border-radius:50%; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);
+        }
+        .rank-badge {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700;
+            text-transform:uppercase; letter-spacing:0.4px;
+            border:1px solid rgba(255,255,255,0.15);
+        }
+        .rank-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .rank-card {
+            background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 16px;
+            display: flex; flex-direction: column; gap: 10px;
+            transition: border-color 0.2s;
+        }
+        .rank-card:hover { border-color: var(--accent); }
+        .rank-card-header { display:flex; align-items:center; gap:10px; }
+        .rank-card-name { font-weight:800; font-size:15px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .rank-card-priority { font-size:11px; color:var(--text-muted); background:var(--bg-card); border:1px solid var(--border); border-radius:4px; padding:2px 7px; }
+        .rank-card-desc { font-size:12px; color:var(--text-muted); line-height:1.5; min-height:18px; }
+        .rank-card-perms { display:flex; flex-wrap:wrap; gap:4px; }
+        .rank-card-actions { display:flex; gap:6px; margin-top:auto; padding-top:6px; border-top:1px solid var(--border); }
+
+        /* ── Modal (extended) ────────────────────────────────────────────────── */
+        .perm-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;
+        }
+        .perm-row {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:8px 10px; background:var(--bg-dark); border-radius:var(--radius);
+            border:1px solid var(--border); gap:8px;
+        }
+        .perm-row-label { font-size:12px; font-weight:600; flex:1; }
+        .color-preview-row { display:flex; gap:10px; align-items:center; }
+        .color-preview-row input[type="color"] {
+            width:44px; height:34px; padding:2px 4px; background:var(--bg-dark);
+            border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;
+        }
+        .color-preview-box {
+            flex:1; height:34px; border-radius:var(--radius); border:1px solid var(--border);
+            display:flex; align-items:center; padding:0 10px;
+            font-size:12px; font-weight:700; letter-spacing:0.5px;
+        }
     </style>
 </head>
 <body>
@@ -324,8 +393,28 @@
         <div class="sidebar-nav-item" data-view="status" onclick="ucpSwitchView('status')">
             <span class="nav-icon">&#128225;</span> Server Status
         </div>
-        <div class="sidebar-nav-item" id="console-nav" data-view="console" onclick="ucpSwitchView('console')" style="display:none;">
-            <span class="nav-icon">&#128421;</span> In-Game Console
+        <!-- Administration – visible when adminLevel >= 1 -->
+        <div id="admin-nav-section" style="display:none;">
+            <div class="sidebar-section-label">Administration</div>
+            <div class="sidebar-nav-item" data-view="users" onclick="ucpSwitchView('users')">
+                <span class="nav-icon">&#128101;</span> User Management
+            </div>
+            <div class="sidebar-nav-item" data-view="players" onclick="ucpSwitchView('players')">
+                <span class="nav-icon">&#127918;</span> Active Players
+            </div>
+            <div class="sidebar-nav-item" data-view="adminconsole" onclick="ucpSwitchView('adminconsole')">
+                <span class="nav-icon">&#128421;</span> Console
+            </div>
+            <div class="sidebar-nav-item" id="ranks-nav" data-view="ranks" onclick="ucpSwitchView('ranks')" style="display:none;">
+                <span class="nav-icon">&#127942;</span> Rank Management
+            </div>
+        </div>
+        <!-- Server Controls – visible when adminLevel >= 3 -->
+        <div id="server-ctrl-nav-section" style="display:none;">
+            <div class="sidebar-section-label">Server Controls</div>
+            <div class="sidebar-nav-item" data-view="servercontrols" onclick="ucpSwitchView('servercontrols')">
+                <span class="nav-icon">&#9881;&#65039;</span> Server Controls
+            </div>
         </div>
     </aside>
 
@@ -457,7 +546,7 @@
             </div>
 
             <!-- Console view (admins only) -->
-            <div class="ucp-view" id="ucp-view-console">
+            <div class="ucp-view" id="ucp-view-adminconsole">
                 <div class="section-card">
                     <div class="section-card-header">
                         <span class="section-card-title">&#128421; In-Game Console</span>
@@ -475,6 +564,204 @@
                 </div>
             </div>
 
+            <!-- User Management view (admin only) -->
+            <div class="ucp-view" id="ucp-view-users">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#128101; User Management</span>
+                        <div class="admin-search-bar">
+                            <input type="search" id="users-search" placeholder="Search by name or Social Club&#8230;" oninput="ucpFilterUsers()" />
+                            <button class="btn btn-ghost btn-sm" onclick="ucpLoadUsers()">&#128260; Refresh</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Player</th>
+                                    <th>Admin Level</th>
+                                    <th>Rank</th>
+                                    <th>Status</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Players view (admin only) -->
+            <div class="ucp-view" id="ucp-view-players">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#127918; Active Players</span>
+                        <button class="btn btn-ghost btn-sm" onclick="ucpLoadPlayers()">&#128260; Refresh</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Social Club</th>
+                                    <th>Admin</th>
+                                    <th>Ping</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="players-tbody">
+                                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Controls view (super admin only) -->
+            <div class="ucp-view" id="ucp-view-servercontrols">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon green">&#128994;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-online">&#8211;</div>
+                            <div class="stat-label">Online Players</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue">&#128101;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-registered">&#8211;</div>
+                            <div class="stat-label">Registered Users</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon accent">&#127918;</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="sc-gameusers">&#8211;</div>
+                            <div class="stat-label">Linked Game Accounts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#128226; Broadcast Message</span>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="broadcast-row">
+                            <input type="text" id="broadcast-msg" placeholder="Message to broadcast to all online players&#8230;" />
+                            <button class="btn btn-primary" onclick="serverBroadcast()">&#128226; Broadcast</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#9881;&#65039; Server Actions</span>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="ctrl-action-row">
+                            <div class="ctrl-action-info">
+                                <div class="ctrl-action-title">&#128260; Restart Server</div>
+                                <div class="ctrl-action-desc">Gracefully stops the server process. Requires a restart loop (pm2, batch script, or similar) to bring it back online automatically.</div>
+                            </div>
+                            <button class="btn btn-danger" onclick="serverRestart()">Restart</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rank Management view (admin >= 2) -->
+            <div class="ucp-view" id="ucp-view-ranks">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <span class="section-card-title">&#127942; Rank Management</span>
+                        <button class="btn btn-primary btn-sm" onclick="openRankModal()">&#43; New Rank</button>
+                    </div>
+                    <div class="section-card-body">
+                        <div class="rank-card-grid" id="ranks-grid">
+                            <div style="color:var(--text-muted);font-size:13px;">Loading&#8230;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Rank Modal -->
+<div id="rank-modal-backdrop" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closeRankModal()">
+    <div class="modal" style="max-width:580px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span class="modal-title" id="rank-modal-title">New Rank</span>
+            <button class="modal-close" onclick="closeRankModal()">&#215;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="rank-edit-id" value="" />
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                <div>
+                    <div class="info-label" style="margin-bottom:6px;">Rank Name</div>
+                    <input type="text" id="rank-name" placeholder="e.g. Supporter" style="width:100%;" />
+                </div>
+                <div>
+                    <div class="info-label" style="margin-bottom:6px;">Priority (sort order)</div>
+                    <input type="number" id="rank-priority" placeholder="e.g. 15" min="0" style="width:100%;" />
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="info-label" style="margin-bottom:6px;">Color</div>
+                <div class="color-preview-row">
+                    <input type="color" id="rank-color" value="#7a8199" oninput="updateColorPreview()" />
+                    <div class="color-preview-box" id="rank-color-preview">Preview Badge</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <div class="info-label" style="margin-bottom:6px;">Description</div>
+                <textarea id="rank-description" placeholder="Brief description of this rank&#8230;" rows="2"
+                    style="width:100%;padding:8px 12px;background:var(--bg-dark);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px;resize:vertical;outline:none;"></textarea>
+            </div>
+
+            <div>
+                <div class="info-label" style="margin-bottom:8px;">Permissions</div>
+                <div class="perm-grid" id="rank-perm-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeRankModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveRank()">&#128190; Save Rank</button>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Rank Modal -->
+<div id="assign-rank-modal-backdrop" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closeAssignRankModal()">
+    <div class="modal" style="max-width:400px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span class="modal-title">Assign Rank</span>
+            <button class="modal-close" onclick="closeAssignRankModal()">&#215;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+                Select a rank for <strong id="assign-rank-player-name">this player</strong>.
+            </p>
+            <input type="hidden" id="assign-rank-sc" value="" />
+            <select id="assign-rank-select" style="width:100%;">
+                <option value="">(No rank / Remove)</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAssignRankModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmAssignRank()">Assign</button>
         </div>
     </div>
 </div>
@@ -495,6 +782,7 @@ const PERM_LABELS = {
 
 let consolePollTimer = null;
 let lastConsoleSince = null;
+let allUsers = [];
 
 function toast(msg, type = 'info') {
     const el = document.createElement('div');
@@ -523,19 +811,36 @@ function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/**
+ * Serialize a JS value to a string safe for embedding inside an HTML attribute
+ * delimited by double-quotes: onclick="fn(jsAttr(v))".
+ * JSON.stringify wraps strings in ", which would terminate the attribute;
+ * replacing " with &quot; keeps the HTML valid while the browser decodes it
+ * back to " before executing the JS.
+ */
+function jsAttr(v) {
+    return JSON.stringify(v).replace(/"/g, '&quot;');
+}
+
 function ucpSwitchView(name) {
     document.querySelectorAll('.ucp-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.sidebar-nav-item').forEach(i => i.classList.remove('active'));
     const view = document.getElementById('ucp-view-' + name);
     if (view) view.classList.add('active');
     document.querySelectorAll('.sidebar-nav-item[data-view="' + name + '"]').forEach(el => el.classList.add('active'));
-    if (name === 'console') {
-        clearInterval(consolePollTimer);
+    clearInterval(consolePollTimer);
+    if (name === 'adminconsole') {
         lastConsoleSince = null;
         fetchConsoleLogs();
         consolePollTimer = setInterval(fetchConsoleLogs, 3000);
-    } else {
-        clearInterval(consolePollTimer);
+    } else if (name === 'users') {
+        ucpLoadUsers();
+    } else if (name === 'players') {
+        ucpLoadPlayers();
+    } else if (name === 'servercontrols') {
+        loadServerControlStats();
+    } else if (name === 'ranks') {
+        loadRanks();
     }
     if (name === 'status') refreshStatus();
 }
@@ -544,6 +849,9 @@ function showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('dashboard-screen').classList.remove('visible');
     clearInterval(consolePollTimer);
+    document.getElementById('admin-nav-section').style.display = 'none';
+    document.getElementById('server-ctrl-nav-section').style.display = 'none';
+    document.getElementById('ranks-nav').style.display = 'none';
 }
 function showDashboard() {
     document.getElementById('login-screen').style.display = 'none';
@@ -652,7 +960,15 @@ async function loadDashboard() {
         ? '<span class="perm-none">No special permissions.</span>'
         : activePerms.map(([k]) => '<span class="perm-tag">' + (PERM_LABELS[k] || k) + '</span>').join('');
 
-    if (me.adminLevel > 0) document.getElementById('console-nav').style.display = '';
+    if (me.adminLevel >= 1) {
+        document.getElementById('admin-nav-section').style.display = '';
+    }
+    if (me.adminLevel >= 2) {
+        document.getElementById('ranks-nav').style.display = '';
+    }
+    if (me.adminLevel >= 3) {
+        document.getElementById('server-ctrl-nav-section').style.display = '';
+    }
 }
 
 async function changePassword() {
@@ -696,7 +1012,7 @@ async function refreshStatus() {
 
 async function fetchConsoleLogs() {
     try {
-        const url  = lastConsoleSince ? '/api/console?since=' + encodeURIComponent(lastConsoleSince) : '/api/console';
+        const url  = lastConsoleSince ? '/api/ucp-console?since=' + encodeURIComponent(lastConsoleSince) : '/api/ucp-console';
         const logs = await api('GET', url);
         if (!logs) return;
         const container  = document.getElementById('console-log');
@@ -727,10 +1043,347 @@ async function sendConsoleCommand() {
     const cmd   = input.value.trim();
     if (!cmd) return;
     try {
-        await api('POST', '/api/console/send', { command: cmd });
+        await api('POST', '/api/ucp-console/send', { command: cmd });
         input.value = '';
         toast('Command sent.', 'success');
         setTimeout(fetchConsoleLogs, 400);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── User Management ───────────────────────────────────────────────────────────
+
+let allRanksCache = []; // shared with rank management functions
+
+async function ucpLoadUsers() {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>';
+    try {
+        // Load users and ranks in parallel
+        [allUsers, allRanksCache] = await Promise.all([
+            api('GET', '/api/ucp-users').then(d => d || []),
+            api('GET', '/api/ranks').catch(() => []) || [],
+        ]);
+        ucpFilterUsers();
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red);">' + escHtml(e.message) + '</td></tr>';
+    }
+}
+
+function ucpFilterUsers() {
+    const q = (document.getElementById('users-search').value || '').toLowerCase();
+    const filtered = allUsers.filter(u =>
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.socialClub || '').toLowerCase().includes(q)
+    );
+    const tbody = document.getElementById('users-tbody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="empty-icon">&#128101;</div><p>No users found.</p></td></tr>';
+        return;
+    }
+    const levelClasses = ['none', 'mod', 'admin', 'superadmin'];
+    tbody.innerHTML = filtered.map(u => {
+        const lvlClass  = levelClasses[u.adminLevel] || 'none';
+        const lvlName   = ADMIN_LEVEL_NAMES[u.adminLevel] || 'None';
+        const sc        = u.socialClub || '';
+        // Use jsAttr so string values are safely encoded inside onclick="..."
+        const scAttr    = jsAttr(sc);
+        const nameAttr  = jsAttr(u.name || sc);
+        const rankIdAttr = jsAttr(u.rankId || '');
+        const rank     = allRanksCache.find(r => r.id === u.rankId);
+        const rankCell = rank
+            ? `<span class="rank-badge" style="background:${escHtml(rank.color)}22;color:${escHtml(rank.color)};border-color:${escHtml(rank.color)}44;">${escHtml(rank.name)}</span>`
+            : '<span style="color:var(--text-muted);font-size:12px;">\u2014</span>';
+        const banAction = u.banned
+            ? `<button class="btn btn-success btn-xs" onclick="ucpUnbanUser(${scAttr})">Unban</button>`
+            : `<button class="btn btn-danger btn-xs" onclick="ucpBanUser(${scAttr})">Ban</button>`;
+        const rankAction = sc
+            ? `<button class="btn btn-ghost btn-xs" onclick="openAssignRankModal(${scAttr}, ${nameAttr}, ${rankIdAttr})">&#127942; Rank</button>`
+            : '';
+        const actions = sc
+            ? banAction + ' ' + rankAction
+            : '<span style="color:var(--text-muted);">&#8212;</span>';
+        return `<tr>
+            <td>
+                <div style="font-weight:700;">${escHtml(u.name || u.socialClub || '\u2014')}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${escHtml(sc || 'No Social Club')}</div>
+            </td>
+            <td><span class="badge badge-${lvlClass}">${lvlName}</span></td>
+            <td>${rankCell}</td>
+            <td>${u.banned ? '<span class="badge badge-banned">Banned</span>' : '<span class="badge badge-online">Active</span>'}</td>
+            <td style="color:var(--text-muted);font-size:12px;">${formatDate(u.lastSeen)}</td>
+            <td style="display:flex;gap:4px;flex-wrap:wrap;">${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function ucpBanUser(socialClub) {
+    const reason = window.prompt('Ban reason (leave blank for default):');
+    if (reason === null) return;
+    try {
+        await api('POST', '/api/ucp-users/' + encodeURIComponent(socialClub) + '/ban', { reason });
+        toast('User banned.', 'success');
+        await ucpLoadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function ucpUnbanUser(socialClub) {
+    try {
+        await api('POST', '/api/ucp-users/' + encodeURIComponent(socialClub) + '/unban', {});
+        toast('User unbanned.', 'success');
+        await ucpLoadUsers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Active Players ────────────────────────────────────────────────────────────
+
+async function ucpLoadPlayers() {
+    const tbody = document.getElementById('players-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Loading&#8230;</td></tr>';
+    try {
+        const players = await api('GET', '/api/ucp-connections') || [];
+        if (players.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">No players currently online.</td></tr>';
+            return;
+        }
+        const levelClasses = ['none', 'mod', 'admin', 'superadmin'];
+        tbody.innerHTML = players.map(p => {
+            const lvlClass = levelClasses[p.adminLevel] || 'none';
+            return `<tr>
+                <td>${p.id}</td>
+                <td style="font-weight:700;">${escHtml(p.name)}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${escHtml(p.socialClub)}</td>
+                <td><span class="badge badge-${lvlClass}">${ADMIN_LEVEL_NAMES[p.adminLevel] || 'None'}</span></td>
+                <td>${p.ping}ms</td>
+                <td style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="btn btn-success btn-xs" onclick="ucpPlayerAction(${p.id},'heal')">Heal</button>
+                    <button class="btn btn-warning btn-xs" onclick="ucpPlayerAction(${p.id},'freeze',true)">Freeze</button>
+                    <button class="btn btn-danger btn-xs" onclick="ucpKickPlayer(${p.id})">Kick</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red);">' + escHtml(e.message) + '</td></tr>';
+    }
+}
+
+async function ucpPlayerAction(id, type, value) {
+    try {
+        await api('POST', '/api/ucp-connections/' + id + '/action', { type, value });
+        toast('Action applied.', 'success');
+        await ucpLoadPlayers();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function ucpKickPlayer(id) {
+    const reason = window.prompt('Kick reason (leave blank for default):');
+    if (reason === null) return;
+    try {
+        await api('POST', '/api/ucp-connections/' + id + '/action', { type: 'kick', reason: reason || 'Kicked by admin.' });
+        toast('Player kicked.', 'success');
+        setTimeout(ucpLoadPlayers, 500);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Server Controls ───────────────────────────────────────────────────────────
+
+async function loadServerControlStats() {
+    try {
+        const s = await fetch('/api/ucp-stats').then(r => r.json());
+        document.getElementById('sc-online').textContent     = s.onlinePlayers;
+        document.getElementById('sc-registered').textContent = s.registeredUsers.toLocaleString();
+        document.getElementById('sc-gameusers').textContent  = s.gameUsers.toLocaleString();
+    } catch { /* ignore */ }
+}
+
+async function serverBroadcast() {
+    const msg = document.getElementById('broadcast-msg').value.trim();
+    if (!msg) { toast('Please enter a message.', 'error'); return; }
+    try {
+        await api('POST', '/api/server-broadcast', { message: msg });
+        document.getElementById('broadcast-msg').value = '';
+        toast('Message broadcasted to all players!', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function serverRestart() {
+    if (!window.confirm('Are you sure you want to restart the server?\nAll players will be disconnected.')) return;
+    try {
+        await api('POST', '/api/server-restart', {});
+        toast('Server is restarting\u2026', 'info');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Rank Management ───────────────────────────────────────────────────────────
+
+const PERM_DEFS = [
+    { key: 'canSpawnVehicle', label: 'Spawn Vehicle' },
+    { key: 'canSetWeather',   label: 'Set Weather'   },
+    { key: 'canKickPlayers',  label: 'Kick Players'  },
+    { key: 'canBanPlayers',   label: 'Ban Players'   },
+    { key: 'canTeleport',     label: 'Teleport'      },
+    { key: 'canGiveWeapons',  label: 'Give Weapons'  },
+    { key: 'canHealOthers',   label: 'Heal Others'   },
+    { key: 'canSetTime',      label: 'Set Time'      },
+    { key: 'vip',             label: 'VIP'           },
+];
+
+async function loadRanks() {
+    const grid = document.getElementById('ranks-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading&#8230;</div>';
+    try {
+        allRanksCache = await api('GET', '/api/ranks') || [];
+        renderRanksGrid();
+    } catch (e) {
+        grid.innerHTML = '<div style="color:var(--red);font-size:13px;">' + escHtml(e.message) + '</div>';
+    }
+}
+
+function renderRanksGrid() {
+    const grid = document.getElementById('ranks-grid');
+    if (!grid) return;
+    if (allRanksCache.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127942;</div><p>No ranks yet. Create the first one!</p></div>';
+        return;
+    }
+    grid.innerHTML = allRanksCache.map(r => {
+        // jsAttr produces &quot;id&quot; which is valid inside onclick="..."
+        const idAttr  = jsAttr(r.id);
+        const activePerms = Object.entries(r.permissions || {}).filter(([,v]) => v).length;
+        const permHtml = Object.entries(r.permissions || {})
+            .filter(([,v]) => v)
+            .map(([k]) => {
+                const def = PERM_DEFS.find(d => d.key === k);
+                return `<span class="perm-tag" style="font-size:10px;">${escHtml(def ? def.label : k)}</span>`;
+            }).join('') || '<span style="color:var(--text-muted);font-size:11px;">No permissions</span>';
+        return `<div class="rank-card">
+            <div class="rank-card-header">
+                <span class="rank-color-dot" style="background:${escHtml(r.color)};"></span>
+                <span class="rank-card-name">${escHtml(r.name)}</span>
+                <span class="rank-card-priority">P${r.priority}</span>
+            </div>
+            <div class="rank-card-desc">${escHtml(r.description || '')}</div>
+            <div class="rank-card-perms">${permHtml}</div>
+            <div class="rank-card-actions">
+                <button class="btn btn-ghost btn-xs" style="flex:1;" onclick="openRankModal(${idAttr})">&#9998; Edit</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteRank(${idAttr})">&#128465; Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openRankModal(editId) {
+    const modal = document.getElementById('rank-modal-backdrop');
+    const isEdit = !!editId;
+    document.getElementById('rank-modal-title').textContent = isEdit ? 'Edit Rank' : 'New Rank';
+    document.getElementById('rank-edit-id').value = editId || '';
+
+    // Build permission toggles
+    const permGrid = document.getElementById('rank-perm-grid');
+    permGrid.innerHTML = PERM_DEFS.map(d =>
+        `<div class="perm-row">
+            <span class="perm-row-label">${escHtml(d.label)}</span>
+            <label class="switch"><input type="checkbox" id="rp-${d.key}" /><span class="slider"></span></label>
+        </div>`
+    ).join('');
+
+    if (isEdit) {
+        const rank = allRanksCache.find(r => r.id === editId);
+        if (!rank) return;
+        document.getElementById('rank-name').value        = rank.name;
+        document.getElementById('rank-priority').value    = rank.priority;
+        document.getElementById('rank-color').value       = rank.color;
+        document.getElementById('rank-description').value = rank.description || '';
+        PERM_DEFS.forEach(d => {
+            const cb = document.getElementById('rp-' + d.key);
+            if (cb) cb.checked = !!(rank.permissions && rank.permissions[d.key]);
+        });
+    } else {
+        document.getElementById('rank-name').value        = '';
+        document.getElementById('rank-priority').value    = allRanksCache.length ? (Math.max(...allRanksCache.map(r => r.priority)) + 10) : 10;
+        document.getElementById('rank-color').value       = '#7a8199';
+        document.getElementById('rank-description').value = '';
+        PERM_DEFS.forEach(d => { const cb = document.getElementById('rp-' + d.key); if (cb) cb.checked = false; });
+    }
+    updateColorPreview();
+    modal.style.display = 'flex';
+}
+
+function closeRankModal() {
+    document.getElementById('rank-modal-backdrop').style.display = 'none';
+}
+
+function updateColorPreview() {
+    const color   = document.getElementById('rank-color').value;
+    const preview = document.getElementById('rank-color-preview');
+    const name    = (document.getElementById('rank-name').value || 'Preview Badge').trim();
+    preview.style.background = color + '22';
+    preview.style.color      = color;
+    preview.style.borderColor = color + '55';
+    preview.textContent = name;
+}
+
+document.getElementById('rank-name').addEventListener('input', updateColorPreview);
+
+async function saveRank() {
+    const editId = document.getElementById('rank-edit-id').value;
+    const name   = document.getElementById('rank-name').value.trim();
+    if (!name) { toast('Rank name cannot be empty.', 'error'); return; }
+    const priority    = parseInt(document.getElementById('rank-priority').value, 10) || 0;
+    const color       = document.getElementById('rank-color').value;
+    const description = document.getElementById('rank-description').value.trim();
+    const permissions = {};
+    PERM_DEFS.forEach(d => { permissions[d.key] = !!(document.getElementById('rp-' + d.key) || {}).checked; });
+
+    try {
+        if (editId) {
+            await api('PUT', '/api/ranks/' + encodeURIComponent(editId), { name, priority, color, description, permissions });
+            toast('Rank updated!', 'success');
+        } else {
+            await api('POST', '/api/ranks', { name, priority, color, description, permissions });
+            toast('Rank created!', 'success');
+        }
+        closeRankModal();
+        await loadRanks();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteRank(rankId) {
+    const rank = allRanksCache.find(r => r.id === rankId);
+    if (!rank) return;
+    if (!window.confirm(`Delete rank "${rank.name}"?\nAll players assigned this rank will lose it.`)) return;
+    try {
+        await api('DELETE', '/api/ranks/' + encodeURIComponent(rankId));
+        toast('Rank deleted.', 'success');
+        await loadRanks();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Assign Rank Modal ─────────────────────────────────────────────────────────
+
+function openAssignRankModal(socialClub, playerName, currentRankId) {
+    document.getElementById('assign-rank-sc').value            = socialClub;
+    document.getElementById('assign-rank-player-name').textContent = playerName;
+    const sel = document.getElementById('assign-rank-select');
+    sel.innerHTML = '<option value="">(Kein Rang / Entfernen)</option>' +
+        allRanksCache.map(r =>
+            `<option value="${escHtml(r.id)}"${r.id === currentRankId ? ' selected' : ''}>${escHtml(r.name)}</option>`
+        ).join('');
+    document.getElementById('assign-rank-modal-backdrop').style.display = 'flex';
+}
+
+function closeAssignRankModal() {
+    document.getElementById('assign-rank-modal-backdrop').style.display = 'none';
+}
+
+async function confirmAssignRank() {
+    const sc     = document.getElementById('assign-rank-sc').value;
+    const rankId = document.getElementById('assign-rank-select').value || null;
+    try {
+        await api('POST', '/api/ucp-users/' + encodeURIComponent(sc) + '/rank', { rankId });
+        toast('Rank assigned!', 'success');
+        closeAssignRankModal();
+        await ucpLoadUsers();
     } catch (e) { toast(e.message, 'error'); }
 }
 
