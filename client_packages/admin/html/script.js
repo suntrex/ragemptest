@@ -245,14 +245,31 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ── Login Overlay Functions ─────────────────────────────────────────────── */
-function showLoginOverlay() {
+function showLoginOverlay(playerCount) {
     const overlay = document.getElementById('login-overlay');
     overlay.classList.add('visible');
-    // Clear previous values and errors
-    document.getElementById('login-username').value = '';
-    document.getElementById('login-password').value = '';
+    // Update player count
+    const countEl = document.getElementById('login-online-count');
+    if (countEl) countEl.textContent = typeof playerCount === 'number' ? playerCount : '–';
+    // Clear previous error
     hideLoginError();
-    setTimeout(() => document.getElementById('login-username').focus(), 100);
+    // Pre-fill username if remembered
+    const remembered = localStorage.getItem('ucp_username');
+    const usernameEl = document.getElementById('login-username');
+    const rememberEl = document.getElementById('remember-me');
+    if (remembered && usernameEl) {
+        usernameEl.value = remembered;
+        if (rememberEl) rememberEl.checked = true;
+    } else {
+        if (usernameEl) usernameEl.value = '';
+        if (rememberEl) rememberEl.checked = false;
+    }
+    setTimeout(() => {
+        const target = remembered
+            ? document.getElementById('login-password')
+            : document.getElementById('login-username');
+        if (target) target.focus();
+    }, 100);
 }
 
 function hideLoginOverlay() {
@@ -272,18 +289,25 @@ function hideLoginError() {
 function submitLogin() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
+    const remember = document.getElementById('remember-me') && document.getElementById('remember-me').checked;
     if (!username || !password) {
         showLoginError('Please enter your username and password.');
         return;
     }
     hideLoginError();
+    // Store username if remember-me is checked
+    if (remember) {
+        try { localStorage.setItem('ucp_username', username); } catch (e) { /* ignore */ }
+    } else {
+        try { localStorage.removeItem('ucp_username'); } catch (e) { /* ignore */ }
+    }
     const btn = document.getElementById('login-submit-btn');
     btn.disabled = true;
-    btn.textContent = 'Signing in…';
+    btn.textContent = '⏳ Signing in…';
     trigger('auth:cef:login', username, password);
-    // Re-enable after timeout in case no response comes
+    // Re-enable after timeout in case no response comes back
     setTimeout(() => {
         btn.disabled = false;
-        btn.textContent = 'Sign In';
-    }, 5000);
+        btn.textContent = '➔ Sign In';
+    }, 6000);
 }

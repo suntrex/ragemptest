@@ -145,11 +145,11 @@ async function loadDashboard() {
             return;
         }
         tbody.innerHTML = recent.map(u => {
-            const isOnline = conns.some(c => c.socialClub === u.socialClub);
+            const isOnline = u.socialClub && conns.some(c => c.socialClub === u.socialClub);
             return `<tr>
                 <td><strong>${escHtml(u.name)}</strong></td>
-                <td style="font-size:12px;color:var(--text-muted);">${escHtml(u.socialClub)}</td>
-                <td>${levelBadge(u.adminLevel)}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${u.socialClub ? escHtml(u.socialClub) : '<em>Not linked</em>'}</td>
+                <td>${u.ucpOnly ? '<span class="badge badge-none">UCP Only</span>' : levelBadge(u.adminLevel)}</td>
                 <td style="font-size:12px;">${timeAgo(u.lastSeen)}</td>
                 <td>${isOnline
                     ? '<span class="badge badge-online">● Online</span>'
@@ -338,8 +338,11 @@ function filterUsers() {
     const banned  = document.getElementById('filter-banned').value;
 
     const filtered = allUsers.filter(u => {
-        const matchQ   = !q || u.name.toLowerCase().includes(q) || u.socialClub.toLowerCase().includes(q);
-        const matchLvl = !level || String(u.adminLevel) === level;
+        const sc       = (u.socialClub || '').toLowerCase();
+        const name     = (u.name || '').toLowerCase();
+        const ucp      = (u.ucpUsername || '').toLowerCase();
+        const matchQ   = !q || name.includes(q) || sc.includes(q) || ucp.includes(q);
+        const matchLvl = !level || (u.ucpOnly ? level === '0' : String(u.adminLevel) === level);
         const matchBan = !banned || (banned === 'banned' ? u.banned : !u.banned);
         return matchQ && matchLvl && matchBan;
     });
@@ -355,20 +358,30 @@ function renderUsers(users) {
     }
     tbody.innerHTML = users.map(u => {
         const permCount = Object.values(u.permissions || {}).filter(Boolean).length;
+        const scDisplay = u.socialClub
+            ? escHtml(u.socialClub)
+            : `<span style="color:var(--text-muted);font-style:italic;">Not linked yet</span>`;
+        const levelCell = u.ucpOnly
+            ? '<span class="badge badge-none">UCP Only</span>'
+            : levelBadge(u.adminLevel);
+        const nameCell  = u.ucpUsername
+            ? `<strong>${escHtml(u.name)}</strong>`
+            : `<strong>${escHtml(u.name)}</strong>`;
+        const actions   = u.ucpOnly
+            ? `<span style="font-size:11px;color:var(--text-muted);">Awaiting game link</span>`
+            : `<button class="btn btn-ghost btn-xs" onclick='openEditUserModal(${JSON.stringify(u.socialClub)})'>✏ Edit</button>
+               ${u.banned
+                   ? `<button class="btn btn-success btn-xs" onclick='unbanUser(${JSON.stringify(u.socialClub)})'>✔ Unban</button>`
+                   : `<button class="btn btn-danger  btn-xs" onclick='openBanModal(${JSON.stringify(u.socialClub)})'>🚫 Ban</button>`
+               }`;
         return `<tr>
-            <td><strong>${escHtml(u.name)}</strong></td>
-            <td style="font-size:12px;color:var(--text-muted);">${escHtml(u.socialClub)}</td>
-            <td>${levelBadge(u.adminLevel)}</td>
+            <td>${nameCell}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${scDisplay}</td>
+            <td>${levelCell}</td>
             <td><span class="badge badge-none">${permCount} active</span></td>
-            <td>${u.banned ? `<span class="badge badge-banned" title="${escHtml(u.banReason)}">Banned</span>` : '<span class="badge badge-online">Active</span>'}</td>
+            <td>${u.banned ? `<span class="badge badge-banned" title="${escHtml(u.banReason || '')}">Banned</span>` : '<span class="badge badge-online">Active</span>'}</td>
             <td style="font-size:12px;">${timeAgo(u.lastSeen)}</td>
-            <td style="text-align:right; white-space:nowrap;">
-                <button class="btn btn-ghost btn-xs" onclick='openEditUserModal(${JSON.stringify(u.socialClub)})'>✏ Edit</button>
-                ${u.banned
-                    ? `<button class="btn btn-success btn-xs" onclick='unbanUser(${JSON.stringify(u.socialClub)})'>✔ Unban</button>`
-                    : `<button class="btn btn-danger  btn-xs" onclick='openBanModal(${JSON.stringify(u.socialClub)})'>🚫 Ban</button>`
-                }
-            </td>
+            <td style="text-align:right; white-space:nowrap;">${actions}</td>
         </tr>`;
     }).join('');
 }

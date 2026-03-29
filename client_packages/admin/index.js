@@ -41,7 +41,7 @@ mp.keys.bind(0x75, true, () => {  // 0x75 = F6
 // ─── Login Overlay (shown on player join) ─────────────────────────────────────
 
 /** Server signals that the player must authenticate. */
-mp.events.add('auth:showLogin', () => {
+mp.events.add('auth:showLogin', (playerCount) => {
     loginVisible = true;
     if (!browser) {
         browser = mp.browsers.new(MENU_URL);
@@ -50,7 +50,7 @@ mp.events.add('auth:showLogin', () => {
     browser.active = true;
     // Give the browser a moment to load before executing JS.
     setTimeout(() => {
-        if (browser) browser.execute('showLoginOverlay()');
+        if (browser) browser.execute('showLoginOverlay(' + (parseInt(playerCount, 10) || 0) + ')');
     }, 1500);
 });
 

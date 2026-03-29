@@ -460,7 +460,33 @@ const server = http.createServer(async (req, res) => {
     // GET /api/users
     if (pathname === '/api/users' && method === 'GET') {
         if (!requireAuth(req, res)) return;
-        return jsonOk(res, Object.values(loadUsers()));
+        const users    = loadUsers();
+        const accounts = loadAccounts();
+
+        // Start with all game-joined players
+        const result = Object.values(users);
+        const linkedSocialClubs = new Set(Object.keys(users));
+
+        // Also include UCP accounts that have never joined the game or whose
+        // Social Club is not yet recorded in users.json
+        Object.values(accounts).forEach(acc => {
+            if (acc.socialClub && linkedSocialClubs.has(acc.socialClub)) return;
+            result.push({
+                socialClub:  acc.socialClub || null,
+                name:        acc.username,
+                adminLevel:  0,
+                permissions: defaultPermissions(),
+                notes:       '',
+                banned:      false,
+                banReason:   '',
+                firstSeen:   acc.createdAt,
+                lastSeen:    acc.lastLogin || acc.createdAt,
+                ucpUsername: acc.username,
+                ucpOnly:     !acc.socialClub,
+            });
+        });
+
+        return jsonOk(res, result);
     }
 
     // PUT /api/users/:socialClub
@@ -599,6 +625,20 @@ const server = http.createServer(async (req, res) => {
         saveAccounts(accounts);
         logConsole('REGISTER', `New UCP account registered: ${username}`);
         return jsonOk(res, { ok: true });
+    }
+
+    // GET /api/ucp-stats  – aggregate stats for the player UCP dashboard
+    if (pathname === '/api/ucp-stats' && method === 'GET') {
+        const accounts = loadAccounts();
+        const users    = loadUsers();
+        const totalRegistered = Object.keys(accounts).length;
+        const totalGameUsers  = Object.keys(users).length;
+        const onlineCount     = onlinePlayers.size;
+        return jsonOk(res, {
+            registeredUsers: totalRegistered,
+            gameUsers:       totalGameUsers,
+            onlinePlayers:   onlineCount,
+        });
     }
 
     // POST /api/ucp-login  – log in to the player UCP
